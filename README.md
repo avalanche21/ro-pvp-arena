@@ -2,6 +2,8 @@
 
 A browser-playable Ragnarok Online-inspired PvP arena with real-time multiplayer combat.
 
+![Gameplay Screenshot](docs/demo1.png)
+
 ## Disclaimer
 This is a fan-made project for educational and personal demonstration purposes only.
 Ragnarok Online is a trademark of Gravity Co., Ltd. This project is not affiliated with,
