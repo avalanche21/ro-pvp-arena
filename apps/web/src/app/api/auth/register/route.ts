@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getPool } from "@/lib/db";
+import { getPool, getMemoryUsers } from "@/lib/db";
 import { createToken } from "@/lib/auth";
 
 export async function POST(request: Request) {
@@ -18,6 +18,26 @@ export async function POST(request: Request) {
 
   const pool = getPool();
   const passwordHash = await bcrypt.hash(password, 10);
+
+  // No database — use in-memory store
+  if (!pool) {
+    const { memoryUsers, getNextId } = getMemoryUsers();
+    if (memoryUsers.has(username.toLowerCase())) {
+      return NextResponse.json({ error: "Username already taken" }, { status: 409 });
+    }
+    const userId = getNextId();
+    memoryUsers.set(username.toLowerCase(), { id: userId, username, passwordHash });
+    const token = createToken(userId, username);
+    const response = NextResponse.json({ token, userId, username });
+    response.cookies.set("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 86400,
+      path: "/",
+    });
+    return response;
+  }
 
   try {
     const result = await pool.query(
