@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getPool } from "@/lib/db";
+import { getPool, getMemoryUsers } from "@/lib/db";
 import { createToken } from "@/lib/auth";
 
 export async function POST(request: Request) {
@@ -11,6 +11,29 @@ export async function POST(request: Request) {
   }
 
   const pool = getPool();
+
+  // No database — use in-memory store
+  if (!pool) {
+    const { memoryUsers } = getMemoryUsers();
+    const entry = memoryUsers.get(username.toLowerCase());
+    if (!entry) {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+    const valid = await bcrypt.compare(password, entry.passwordHash);
+    if (!valid) {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+    const token = createToken(entry.id, entry.username);
+    const response = NextResponse.json({ token, userId: entry.id, username: entry.username });
+    response.cookies.set("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 86400,
+      path: "/",
+    });
+    return response;
+  }
 
   try {
     const result = await pool.query(
