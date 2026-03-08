@@ -1,0 +1,32 @@
+{
+  "frameSize": 105,
+  "anchorX": 52,
+  "anchorY": 73,
+  "rows": [
+    {
+      "index": 0,
+      "label": "idle",
+      "frameCount": 4
+    },
+    {
+      "index": 1,
+      "label": "walk",
+      "frameCount": 4
+    },
+    {
+      "index": 2,
+      "label": "attack",
+      "frameCount": 4
+    },
+    {
+      "index": 3,
+      "label": "hurt",
+      "frameCount": 4
+    },
+    {
+      "index": 4,
+      "label": "die",
+      "frameCount": 4
+    }
+  ]
+}

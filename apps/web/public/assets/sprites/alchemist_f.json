@@ -1,0 +1,137 @@
+{
+  "frameSize": 150,
+  "anchorX": 75,
+  "anchorY": 120,
+  "rows": [
+    {
+      "index": 0,
+      "label": "idle_dir0",
+      "frameCount": 3
+    },
+    {
+      "index": 1,
+      "label": "idle_dir1",
+      "frameCount": 3
+    },
+    {
+      "index": 2,
+      "label": "idle_dir2",
+      "frameCount": 3
+    },
+    {
+      "index": 3,
+      "label": "idle_dir3",
+      "frameCount": 3
+    },
+    {
+      "index": 4,
+      "label": "idle_dir4",
+      "frameCount": 3
+    },
+    {
+      "index": 5,
+      "label": "idle_dir5",
+      "frameCount": 3
+    },
+    {
+      "index": 6,
+      "label": "idle_dir6",
+      "frameCount": 3
+    },
+    {
+      "index": 7,
+      "label": "idle_dir7",
+      "frameCount": 3
+    },
+    {
+      "index": 8,
+      "label": "walk_dir0",
+      "frameCount": 8
+    },
+    {
+      "index": 9,
+      "label": "walk_dir1",
+      "frameCount": 8
+    },
+    {
+      "index": 10,
+      "label": "walk_dir2",
+      "frameCount": 8
+    },
+    {
+      "index": 11,
+      "label": "walk_dir3",
+      "frameCount": 8
+    },
+    {
+      "index": 12,
+      "label": "walk_dir4",
+      "frameCount": 8
+    },
+    {
+      "index": 13,
+      "label": "walk_dir5",
+      "frameCount": 8
+    },
+    {
+      "index": 14,
+      "label": "walk_dir6",
+      "frameCount": 8
+    },
+    {
+      "index": 15,
+      "label": "walk_dir7",
+      "frameCount": 8
+    },
+    {
+      "index": 16,
+      "label": "attack_dir0",
+      "frameCount": 6
+    },
+    {
+      "index": 17,
+      "label": "attack_dir1",
+      "frameCount": 6
+    },
+    {
+      "index": 18,
+      "label": "attack_dir2",
+      "frameCount": 6
+    },
+    {
+      "index": 19,
+      "label": "attack_dir3",
+      "frameCount": 6
+    },
+    {
+      "index": 20,
+      "label": "attack_dir4",
+      "frameCount": 6
+    },
+    {
+      "index": 21,
+      "label": "attack_dir5",
+      "frameCount": 6
+    },
+    {
+      "index": 22,
+      "label": "attack_dir6",
+      "frameCount": 6
+    },
+    {
+      "index": 23,
+      "label": "attack_dir7",
+      "frameCount": 6
+    },
+    {
+      "index": 24,
+      "label": "hurt_dir0",
+      "frameCount": 5
+    },
+    {
+      "index": 25,
+      "label": "die_dir0",
+      "frameCount": 3
+    }
+  ]
+}
