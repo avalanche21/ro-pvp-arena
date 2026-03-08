@@ -1,0 +1,2018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RO PvP Sprite Editor</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#1a1a2e; color:#eee; font-family:'Segoe UI',Arial,sans-serif; display:flex; height:100vh; }
+
+  .sidebar { width:220px; background:#16213e; border-right:2px solid #0f3460; overflow-y:auto; flex-shrink:0; }
+  .sidebar h2 { font-size:13px; padding:12px 10px 6px; color:#e94560; text-transform:uppercase; letter-spacing:1px; }
+  .sprite-list { list-style:none; }
+  .sprite-list li { padding:8px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #0f3460;
+    display:flex; align-items:center; gap:8px; }
+  .sprite-list li:hover { background:#0f3460; }
+  .sprite-list li.active { background:#0f3460; color:#e94560; font-weight:bold; }
+  .sprite-list li .thumb { width:32px; height:32px; background-size:contain; background-repeat:no-repeat;
+    background-position:center; image-rendering:pixelated; }
+  .section-header { padding:10px 12px 4px; font-size:11px; color:#666; text-transform:uppercase; letter-spacing:1px; border-top:2px solid #0f3460; }
+
+  .main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .toolbar { background:#16213e; padding:10px 16px; display:flex; gap:14px; align-items:center;
+    flex-wrap:wrap; border-bottom:2px solid #0f3460; }
+  .toolbar label { font-size:12px; color:#aaa; display:flex; align-items:center; gap:4px; }
+  .toolbar select, .toolbar input { background:#1a1a2e; color:#eee; border:1px solid #0f3460;
+    padding:3px 6px; border-radius:4px; font-size:12px; }
+  .toolbar button { padding:6px 14px; border:none; border-radius:5px; cursor:pointer; font-weight:bold; font-size:12px; }
+  .btn-primary { background:#e94560; color:#fff; }
+  .btn-primary:hover { background:#c73650; }
+  .btn-green { background:#22c55e; color:#fff; }
+  .btn-green:hover { background:#18a34a; }
+
+  .content { flex:1; display:flex; overflow:hidden; }
+
+  /* Preview area */
+  .preview-panel { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; gap:20px; }
+  .preview-stage { background:#2a2a4a; border:2px solid #0f3460; border-radius:8px; position:relative;
+    display:flex; align-items:center; justify-content:center; min-height:250px; min-width:300px; }
+  .preview-stage canvas { image-rendering:pixelated; }
+  .anim-controls { display:flex; gap:10px; align-items:center; }
+  .anim-controls button { padding:5px 12px; background:#0f3460; color:#fff; border:none; border-radius:4px; cursor:pointer; }
+  .anim-controls button.active { background:#e94560; }
+  .anim-controls button:hover { background:#1a5090; }
+
+  /* Spritesheet panel */
+  .sheet-panel { width:400px; background:#16213e; border-left:2px solid #0f3460; overflow:auto; padding:12px; }
+  .sheet-panel h3 { font-size:13px; color:#aaa; margin-bottom:8px; }
+  .sheet-canvas { image-rendering:pixelated; border:1px solid #0f3460; border-radius:4px; }
+  .frame-info { font-size:11px; color:#666; margin-top:8px; }
+
+  /* Skill effects panel */
+  .skills-section { margin-top:16px; padding-top:12px; border-top:2px solid #0f3460; }
+  .skill-grid { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .skill-btn { padding:6px 10px; background:#1a1a2e; color:#aaa; border:1px solid #0f3460; border-radius:4px;
+    cursor:pointer; font-size:11px; white-space:nowrap; }
+  .skill-btn:hover { background:#0f3460; color:#fff; }
+  .skill-btn.active { background:#e94560; color:#fff; border-color:#e94560; }
+  .skill-preview { margin-top:10px; border:1px solid #0f3460; border-radius:4px; background:#2a2a4a; }
+  .skill-name { font-size:12px; color:#e94560; margin-top:6px; }
+  .skill-desc { font-size:11px; color:#666; margin-top:2px; }
+
+  /* Direction buttons */
+  .dir-grid { display:grid; grid-template-columns:40px 40px 40px; grid-template-rows:40px 40px 40px; gap:2px; }
+  .dir-btn { width:40px; height:40px; background:#0f3460; color:#aaa; border:none; border-radius:4px;
+    cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; }
+  .dir-btn:hover { background:#1a5090; }
+  .dir-btn.active { background:#e94560; color:#fff; }
+  .dir-btn.empty { background:transparent; cursor:default; }
+
+  .speed-display { font-size:12px; color:#aaa; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h2>Characters</h2>
+  <ul class="sprite-list" id="charList"></ul>
+  <div class="section-header">Monsters</div>
+  <ul class="sprite-list" id="monsterList"></ul>
+</div>
+
+<div class="main">
+  <div class="toolbar">
+    <label>Zoom:
+      <select id="zoom">
+        <option value="1">1x</option>
+        <option value="2" selected>2x</option>
+        <option value="3">3x</option>
+        <option value="4">4x</option>
+      </select>
+    </label>
+    <label>BG Color:
+      <input type="color" id="bgColor" value="#2a2a4a">
+    </label>
+    <label>FPS:
+      <input type="range" id="fpsSlider" min="1" max="15" value="4" style="width:100px">
+      <span class="speed-display" id="fpsDisplay">4</span>
+    </label>
+    <label>Action:
+      <select id="actionSelect">
+        <option value="idle">Idle</option>
+        <option value="walk">Walk</option>
+        <option value="attack">Attack</option>
+        <option value="hurt">Hurt</option>
+        <option value="die">Die</option>
+      </select>
+    </label>
+    <span style="font-size:12px;color:#666" id="infoLabel">Select a sprite</span>
+  </div>
+
+  <div class="content">
+    <div class="preview-panel">
+      <!-- Direction pad -->
+      <div class="dir-grid" id="dirGrid">
+        <button class="dir-btn" data-dir="7">&#8598;</button>
+        <button class="dir-btn active" data-dir="0">&#8593;</button>
+        <button class="dir-btn" data-dir="1">&#8599;</button>
+        <button class="dir-btn" data-dir="6">&#8592;</button>
+        <button class="dir-btn empty"></button>
+        <button class="dir-btn" data-dir="2">&#8594;</button>
+        <button class="dir-btn" data-dir="5">&#8601;</button>
+        <button class="dir-btn" data-dir="4">&#8595;</button>
+        <button class="dir-btn" data-dir="3">&#8600;</button>
+      </div>
+
+      <!-- Preview canvas -->
+      <div class="preview-stage" id="previewStage">
+        <canvas id="previewCanvas" width="300" height="300"></canvas>
+      </div>
+
+      <!-- Animation controls -->
+      <div class="anim-controls">
+        <button id="btnPlay" class="active" onclick="togglePlay()">&#9654; Play</button>
+        <button onclick="stepFrame(-1)">&#9664; Prev</button>
+        <button onclick="stepFrame(1)">Next &#9654;</button>
+        <span class="speed-display">Frame: <span id="frameNum">0</span> / <span id="frameTotal">0</span></span>
+      </div>
+    </div>
+
+    <!-- Spritesheet view -->
+    <div class="sheet-panel">
+      <h3>Spritesheet</h3>
+      <canvas id="sheetCanvas" class="sheet-canvas"></canvas>
+      <div class="frame-info" id="sheetInfo"></div>
+
+      <h3 style="margin-top:16px">All Frames - Current Action</h3>
+      <canvas id="framesCanvas" class="sheet-canvas"></canvas>
+
+      <div class="skills-section">
+        <h3>Skill Effects</h3>
+        <div class="skill-grid" id="skillGrid"></div>
+        <div class="skill-name" id="skillName"></div>
+        <div class="skill-desc" id="skillDesc"></div>
+        <canvas id="skillCanvas" class="skill-preview" width="300" height="300"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// === SPRITE DEFINITIONS ===
+const CHARACTERS = [
+  'knight_m','knight_f','crusader_m','crusader_f',
+  'assassin_m','assassin_f','rogue_m','rogue_f',
+  'wizard_m','wizard_f','sage_m','sage_f',
+  'priest_m','priest_f','monk_m','monk_f',
+  'hunter_m','hunter_f','bard_m','dancer_f',
+  'alchemist_m','alchemist_f',
+];
+const MONSTERS = ['poring','drops'];
+
+const spriteData = {}; // { key: { img, meta, frameSize } }
+
+let currentKey = null;
+let currentDir = 0;
+let currentAction = 'idle';
+let currentFrame = 0;
+let playing = true;
+let animTimer = null;
+
+// === LOAD ALL SPRITES ===
+async function loadAll() {
+  const promises = [];
+  for (const key of CHARACTERS) {
+    promises.push(loadSprite(key, 'sprites', 150));
+  }
+  for (const key of MONSTERS) {
+    promises.push(loadSprite(key, 'monsters', 105));
+  }
+  await Promise.all(promises);
+  buildSidebar();
+  if (CHARACTERS.length > 0) selectSprite(CHARACTERS[0]);
+}
+
+function loadSprite(key, folder, frameSize) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      fetch(`/sprites/${folder}/${key}.json`)
+        .then(r => r.json())
+        .then(meta => {
+          spriteData[key] = { img, meta, frameSize: meta.frameSize || frameSize, folder };
+          resolve();
+        })
+        .catch(() => {
+          spriteData[key] = { img, meta: null, frameSize, folder };
+          resolve();
+        });
+    };
+    img.onerror = () => resolve();
+    img.src = `/sprites/${folder}/${key}.png`;
+  });
+}
+
+// === SIDEBAR ===
+function buildSidebar() {
+  const charList = document.getElementById('charList');
+  const monList = document.getElementById('monsterList');
+
+  for (const key of CHARACTERS) {
+    if (!spriteData[key]) continue;
+    const li = document.createElement('li');
+    li.dataset.key = key;
+    li.onclick = () => selectSprite(key);
+    // Thumbnail: draw first frame
+    const thumbCanvas = document.createElement('canvas');
+    thumbCanvas.width = 32; thumbCanvas.height = 32;
+    const sd = spriteData[key];
+    if (sd.img.complete) {
+      const ctx = thumbCanvas.getContext('2d');
+      ctx.drawImage(sd.img, 0, 0, sd.frameSize, sd.frameSize, 0, 0, 32, 32);
+    }
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    div.style.backgroundImage = `url(${thumbCanvas.toDataURL()})`;
+    const name = key.replace('_m',' (M)').replace('_f',' (F)');
+    li.innerHTML = '';
+    li.appendChild(div);
+    li.appendChild(document.createTextNode(name.charAt(0).toUpperCase() + name.slice(1)));
+    charList.appendChild(li);
+  }
+
+  for (const key of MONSTERS) {
+    if (!spriteData[key]) continue;
+    const li = document.createElement('li');
+    li.dataset.key = key;
+    li.onclick = () => selectSprite(key);
+    const thumbCanvas = document.createElement('canvas');
+    thumbCanvas.width = 32; thumbCanvas.height = 32;
+    const sd = spriteData[key];
+    if (sd.img.complete) {
+      const ctx = thumbCanvas.getContext('2d');
+      ctx.drawImage(sd.img, 0, 0, sd.frameSize, sd.frameSize, 0, 0, 32, 32);
+    }
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    div.style.backgroundImage = `url(${thumbCanvas.toDataURL()})`;
+    li.appendChild(div);
+    li.appendChild(document.createTextNode(key.charAt(0).toUpperCase() + key.slice(1)));
+    monList.appendChild(li);
+  }
+}
+
+function selectSprite(key) {
+  currentKey = key;
+  currentFrame = 0;
+
+  // Update sidebar active
+  document.querySelectorAll('.sprite-list li').forEach(li => {
+    li.classList.toggle('active', li.dataset.key === key);
+  });
+
+  const sd = spriteData[key];
+  const info = document.getElementById('infoLabel');
+  info.textContent = `${key} | ${sd.img.width}x${sd.img.height} | frame: ${sd.frameSize}px`;
+
+  drawSheet();
+  drawFramesStrip();
+  buildSkillButtons();
+  startAnimation();
+}
+
+// === FIND ROW FOR CURRENT ACTION+DIR ===
+function findRow() {
+  const sd = spriteData[currentKey];
+  if (!sd || !sd.meta) return null;
+
+  // Try exact match: action_dir{N}
+  let label = `${currentAction}_dir${currentDir}`;
+  let row = sd.meta.rows.find(r => r.label === label);
+  if (row) return row;
+
+  // Hurt/die often only have dir0
+  label = `${currentAction}_dir0`;
+  row = sd.meta.rows.find(r => r.label === label);
+  return row || null;
+}
+
+// === DRAW PREVIEW ===
+function drawPreview() {
+  const canvas = document.getElementById('previewCanvas');
+  const ctx = canvas.getContext('2d');
+  const zoom = parseInt(document.getElementById('zoom').value);
+  const sd = spriteData[currentKey];
+  if (!sd) return;
+
+  const fs = sd.frameSize;
+  canvas.width = fs * zoom;
+  canvas.height = fs * zoom;
+  ctx.fillStyle = document.getElementById('bgColor').value;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const row = findRow();
+  if (!row) {
+    ctx.fillStyle = '#e94560';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`No ${currentAction} dir${currentDir}`, canvas.width/2, canvas.height/2);
+    return;
+  }
+
+  const frameCount = row.frameCount;
+  const frame = currentFrame % frameCount;
+  const sx = frame * fs;
+  const sy = row.index * fs;
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(sd.img, sx, sy, fs, fs, 0, 0, fs * zoom, fs * zoom);
+
+  document.getElementById('frameNum').textContent = frame;
+  document.getElementById('frameTotal').textContent = frameCount;
+}
+
+// === DRAW SPRITESHEET OVERVIEW ===
+function drawSheet() {
+  const sd = spriteData[currentKey];
+  if (!sd) return;
+  const canvas = document.getElementById('sheetCanvas');
+  const maxW = 370;
+  const scale = Math.min(1, maxW / sd.img.width);
+  canvas.width = sd.img.width * scale;
+  canvas.height = sd.img.height * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(sd.img, 0, 0, canvas.width, canvas.height);
+
+  // Highlight current row
+  const row = findRow();
+  if (row) {
+    const y = row.index * sd.frameSize * scale;
+    const h = sd.frameSize * scale;
+    ctx.strokeStyle = '#e94560';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, y, canvas.width, h);
+
+    // Highlight current frame
+    const fx = (currentFrame % row.frameCount) * sd.frameSize * scale;
+    ctx.fillStyle = 'rgba(233,69,96,0.2)';
+    ctx.fillRect(fx, y, sd.frameSize * scale, h);
+  }
+
+  // Info
+  const info = document.getElementById('sheetInfo');
+  if (sd.meta) {
+    const rows = sd.meta.rows;
+    info.textContent = `${rows.length} animations | Frame size: ${sd.frameSize}px | ` +
+      `Sheet: ${sd.img.width}x${sd.img.height}`;
+  }
+}
+
+// === DRAW FRAMES STRIP ===
+function drawFramesStrip() {
+  const sd = spriteData[currentKey];
+  if (!sd) return;
+  const row = findRow();
+  const canvas = document.getElementById('framesCanvas');
+  if (!row) { canvas.width = 1; canvas.height = 1; return; }
+
+  const fs = sd.frameSize;
+  const count = row.frameCount;
+  const thumbSize = 64;
+  const cols = Math.min(count, 6);
+  const rows = Math.ceil(count / cols);
+  canvas.width = cols * (thumbSize + 4);
+  canvas.height = rows * (thumbSize + 16);
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  for (let i = 0; i < count; i++) {
+    const col = i % cols, r = Math.floor(i / cols);
+    const dx = col * (thumbSize + 4), dy = r * (thumbSize + 16);
+    const sx = i * fs, sy = row.index * fs;
+
+    // Border
+    ctx.strokeStyle = i === (currentFrame % count) ? '#e94560' : '#0f3460';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(dx, dy, thumbSize, thumbSize);
+    ctx.drawImage(sd.img, sx, sy, fs, fs, dx, dy, thumbSize, thumbSize);
+
+    // Label
+    ctx.fillStyle = '#888';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`#${i}`, dx + thumbSize/2, dy + thumbSize + 12);
+  }
+}
+
+// === ANIMATION LOOP ===
+function startAnimation() {
+  if (animTimer) clearInterval(animTimer);
+  const fps = parseInt(document.getElementById('fpsSlider').value);
+  if (playing) {
+    animTimer = setInterval(() => {
+      const row = findRow();
+      if (row) currentFrame = (currentFrame + 1) % row.frameCount;
+      drawPreview();
+      drawSheet();
+      drawFramesStrip();
+    }, 1000 / fps);
+  }
+  drawPreview();
+}
+
+function togglePlay() {
+  playing = !playing;
+  document.getElementById('btnPlay').classList.toggle('active', playing);
+  document.getElementById('btnPlay').innerHTML = playing ? '&#9654; Play' : '&#9724; Pause';
+  startAnimation();
+}
+
+function stepFrame(delta) {
+  playing = false;
+  document.getElementById('btnPlay').classList.toggle('active', false);
+  document.getElementById('btnPlay').innerHTML = '&#9724; Pause';
+  if (animTimer) clearInterval(animTimer);
+  const row = findRow();
+  if (row) {
+    currentFrame = (currentFrame + delta + row.frameCount) % row.frameCount;
+  }
+  drawPreview();
+  drawSheet();
+  drawFramesStrip();
+}
+
+// === DIRECTION PAD ===
+document.querySelectorAll('.dir-btn[data-dir]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentDir = parseInt(btn.dataset.dir);
+    currentFrame = 0;
+    document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    startAnimation();
+  });
+});
+
+// === CONTROLS ===
+document.getElementById('zoom').addEventListener('change', () => drawPreview());
+document.getElementById('bgColor').addEventListener('input', () => drawPreview());
+document.getElementById('fpsSlider').addEventListener('input', e => {
+  document.getElementById('fpsDisplay').textContent = e.target.value;
+  startAnimation();
+});
+document.getElementById('actionSelect').addEventListener('change', e => {
+  currentAction = e.target.value;
+  currentFrame = 0;
+  startAnimation();
+  drawFramesStrip();
+});
+
+// === SKILL EFFECTS ===
+const CLASS_SKILLS = {
+  knight:    [{id:'bash',name:'Bash',desc:'Single target melee slash',color:'#ff6644'},
+              {id:'magnum_break',name:'Magnum Break',desc:'AoE fire explosion around caster',color:'#ff4400'},
+              {id:'provoke',name:'Provoke',desc:'Taunt enemy, red anger effect',color:'#ff2222'},
+              {id:'berserk',name:'Berserk',desc:'Self buff, red aura rage',color:'#cc0000'}],
+  crusader:  [{id:'holy_cross',name:'Holy Cross',desc:'Cross-shaped holy strike',color:'#ffee88'},
+              {id:'grand_cross',name:'Grand Cross',desc:'Large AoE holy cross on ground',color:'#ffdd44'},
+              {id:'devotion',name:'Devotion',desc:'Protective link beam to ally',color:'#88ccff'},
+              {id:'shield_boomerang',name:'Shield Boomerang',desc:'Throws shield projectile',color:'#aaaacc'}],
+  assassin:  [{id:'sonic_blow',name:'Sonic Blow',desc:'Rapid multi-hit slash combo',color:'#aa44ff'},
+              {id:'cloaking',name:'Cloaking',desc:'Fade to invisible',color:'#888888'},
+              {id:'poison_breath',name:'Poison Breath',desc:'Green toxic cloud AoE',color:'#44cc44'},
+              {id:'cross_impact',name:'Cross Impact',desc:'Dash + X-shaped slash',color:'#cc44ff'}],
+  rogue:     [{id:'backstab',name:'Backstab',desc:'Strike from behind',color:'#ff8844'},
+              {id:'strip_armor',name:'Strip Armor',desc:'Remove enemy armor sparks',color:'#ffaa44'},
+              {id:'intimidate',name:'Intimidate',desc:'Teleport-strike combo',color:'#aa66ff'},
+              {id:'close_confine',name:'Close Confine',desc:'Trap ring around target',color:'#ff4488'}],
+  wizard:    [{id:'fire_bolt',name:'Fire Bolt',desc:'Fire projectile from caster',color:'#ff4400'},
+              {id:'storm_gust',name:'Storm Gust',desc:'Ice blizzard AoE with freeze',color:'#88ddff'},
+              {id:'jupitel_thunder',name:'Jupitel Thunder',desc:'Lightning beam projectile',color:'#ffff44'},
+              {id:'meteor_storm',name:'Meteor Storm',desc:'Meteors falling from sky',color:'#ff6600'}],
+  sage:      [{id:'fire_wall',name:'Fire Wall',desc:'Wall of fire pillars',color:'#ff4400'},
+              {id:'dispell',name:'Dispell',desc:'Remove buffs, sparkle burst',color:'#ffffff'},
+              {id:'volcano_buff',name:'Volcano Buff',desc:'Fire aura ground circle',color:'#ff6622'},
+              {id:'earth_spike',name:'Earth Spike',desc:'Rock spikes from ground',color:'#aa8844'}],
+  priest:    [{id:'heal',name:'Heal',desc:'Green healing sparkles rise up',color:'#44ff66'},
+              {id:'holy_light',name:'Holy Light',desc:'Light beam projectile',color:'#ffee88'},
+              {id:'kyrie_eleison',name:'Kyrie Eleison',desc:'Protective barrier shield',color:'#88ccff'},
+              {id:'magnus_exorcismus',name:'Magnus Exorcismus',desc:'Large holy AoE cross',color:'#ffdd44'}],
+  monk:      [{id:'occult_impaction',name:'Occult Impaction',desc:'Spirit punch impact',color:'#ffaa22'},
+              {id:'investigate',name:'Investigate',desc:'Penetrating palm strike',color:'#ff8844'},
+              {id:'zen',name:'Zen',desc:'Meditate, spirit orbs gather',color:'#88aaff'},
+              {id:'asura_strike',name:'Asura Strike',desc:'Massive explosion blast',color:'#ff0000'}],
+  hunter:    [{id:'double_strafe',name:'Double Strafe',desc:'Two arrow projectiles',color:'#88ff44'},
+              {id:'arrow_shower',name:'Arrow Shower',desc:'Rain of arrows AoE',color:'#aacc44'},
+              {id:'ankle_snare',name:'Ankle Snare',desc:'Trap on ground',color:'#ffaa44'},
+              {id:'blitz_beat',name:'Blitz Beat',desc:'Falcon dive attack',color:'#ffcc44'}],
+  bard:      [{id:'melody_strike',name:'Melody Strike',desc:'Music note projectile',color:'#ff88cc'},
+              {id:'frost_joker',name:'Frost Joker',desc:'Freezing AoE around caster',color:'#88ddff'},
+              {id:'drum_battle',name:'Drum of Battle',desc:'Buff aura pulse',color:'#ffaa44'},
+              {id:'lokis_veil',name:'Lokis Veil',desc:'Dark protective dome',color:'#6644aa'}],
+  dancer:    [{id:'slinging_arrow',name:'Slinging Arrow',desc:'Arrow projectile',color:'#ff6688'},
+              {id:'scream',name:'Scream',desc:'Shockwave rings AoE',color:'#ff44aa'},
+              {id:'humming',name:'Humming',desc:'Musical buff aura',color:'#88ffaa'},
+              {id:'charm',name:'Charm',desc:'Heart particles effect',color:'#ff6699'}],
+  alchemist: [{id:'acid_terror',name:'Acid Terror',desc:'Green acid splash',color:'#44ff44'},
+              {id:'demonstration',name:'Demonstration',desc:'Fire bomb explosion',color:'#ff6600'},
+              {id:'potion_pitcher',name:'Potion Pitcher',desc:'Throw potion at target',color:'#ff4444'},
+              {id:'bio_cannibalize',name:'Bio Cannibalize',desc:'Summon plant creature',color:'#44aa44'}],
+};
+
+let activeSkill = null;
+let skillAnimFrame = 0;
+let skillAnimTimer = null;
+
+function getClassFromKey(key) {
+  return key.replace(/_[mf]$/, '');
+}
+
+function buildSkillButtons() {
+  const grid = document.getElementById('skillGrid');
+  grid.innerHTML = '';
+  if (!currentKey) return;
+
+  const cls = getClassFromKey(currentKey);
+  const skills = CLASS_SKILLS[cls];
+  if (!skills) { grid.innerHTML = '<span style="color:#666;font-size:11px">No skills for monsters</span>'; return; }
+
+  for (const skill of skills) {
+    const btn = document.createElement('button');
+    btn.className = 'skill-btn' + (activeSkill === skill.id ? ' active' : '');
+    btn.textContent = skill.name;
+    btn.style.borderLeftColor = skill.color;
+    btn.style.borderLeftWidth = '3px';
+    btn.onclick = () => {
+      activeSkill = activeSkill === skill.id ? null : skill.id;
+      document.querySelectorAll('.skill-btn').forEach(b => b.classList.remove('active'));
+      if (activeSkill) btn.classList.add('active');
+      document.getElementById('skillName').textContent = activeSkill ? skill.name : '';
+      document.getElementById('skillDesc').textContent = activeSkill ? skill.desc : '';
+      startSkillAnim();
+    };
+    grid.appendChild(btn);
+  }
+}
+
+// Load real RO effect sprites
+const effectImages = {};
+function loadEffectImage(name, url) {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = url;
+  img.onload = () => { effectImages[name] = img; };
+}
+loadEffectImage('storm_gust', '/sprites/effects/storm_gust.png');
+
+function startSkillAnim() {
+  if (skillAnimTimer) cancelAnimationFrame(skillAnimTimer);
+  skillAnimFrame = 0;
+  if (activeSkill) animateSkill();
+  else {
+    const c = document.getElementById('skillCanvas');
+    c.getContext('2d').clearRect(0, 0, c.width, c.height);
+  }
+}
+
+function animateSkill() {
+  const canvas = document.getElementById('skillCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = 300, H = 300;
+  canvas.width = W; canvas.height = H;
+
+  ctx.fillStyle = document.getElementById('bgColor').value;
+  ctx.fillRect(0, 0, W, H);
+
+  const t = skillAnimFrame / 60;
+  const cx = W/2, cy = H/2 + 15;
+
+  // Find skill color
+  const cls = getClassFromKey(currentKey);
+  const skills = CLASS_SKILLS[cls] || [];
+  const skillDef = skills.find(s => s.id === activeSkill);
+  const color = skillDef ? skillDef.color : '#fff';
+
+  // Draw BACK layer effects (ground circles, auras that go behind character)
+  drawSkillEffectBack(ctx, activeSkill, cx, cy, W, H, t, color);
+
+  // Draw character sprite in center
+  const sd = spriteData[currentKey];
+  if (sd) {
+    const row = findRow();
+    if (row) {
+      const fs = sd.frameSize;
+      const frame = currentFrame % row.frameCount;
+      const sx = frame * fs, sy = row.index * fs;
+      const drawSize = 120;
+      const dx = W/2 - drawSize/2, dy = H/2 - drawSize/2 + 15;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(sd.img, sx, sy, fs, fs, dx, dy, drawSize, drawSize);
+    }
+  }
+
+  // Draw FRONT layer effects (slashes, explosions, particles on top)
+  drawSkillEffect(ctx, activeSkill, cx, cy, W, H, t, color);
+
+  skillAnimFrame++;
+  if (skillAnimFrame < 180) {
+    skillAnimTimer = requestAnimationFrame(animateSkill);
+  } else {
+    // Loop
+    skillAnimFrame = 0;
+    skillAnimTimer = requestAnimationFrame(animateSkill);
+  }
+}
+
+// === BACK LAYER (behind character: ground circles, auras, cast indicators) ===
+function drawSkillEffectBack(ctx, skillId, cx, cy, W, H, t, color) {
+  ctx.save();
+  switch(skillId) {
+    case 'magnum_break': case 'grand_cross': case 'magnus_exorcismus':
+    case 'storm_gust': case 'meteor_storm': case 'volcano_buff':
+    case 'lokis_veil': case 'close_confine': case 'ankle_snare':
+    case 'frost_joker': case 'drum_battle': case 'humming': {
+      // Ground AoE indicator circle
+      const pulse = 0.3 + Math.sin(t*4)*0.15;
+      const grd = ctx.createRadialGradient(cx, cy+10, 0, cx, cy+10, 80);
+      const c = hexToRgb(color);
+      grd.addColorStop(0, `rgba(${c},${pulse})`);
+      grd.addColorStop(0.6, `rgba(${c},${pulse*0.4})`);
+      grd.addColorStop(1, `rgba(${c},0)`);
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.ellipse(cx, cy+20, 85, 45, 0, 0, Math.PI*2); ctx.fill();
+      break;
+    }
+    case 'berserk': case 'zen': case 'kyrie_eleison': {
+      // Body aura glow behind character
+      const pulse = 0.25 + Math.sin(t*3)*0.15;
+      const grd = ctx.createRadialGradient(cx, cy, 10, cx, cy, 70);
+      const c = hexToRgb(color);
+      grd.addColorStop(0, `rgba(${c},${pulse*1.5})`);
+      grd.addColorStop(0.5, `rgba(${c},${pulse*0.5})`);
+      grd.addColorStop(1, `rgba(${c},0)`);
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.arc(cx, cy, 70, 0, Math.PI*2); ctx.fill();
+      break;
+    }
+  }
+  ctx.restore();
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
+
+// Helper: draw a glowing line (RO-style slash)
+function glowLine(ctx, x1,y1,x2,y2, color, width, alpha) {
+  ctx.globalAlpha = alpha * 0.2;
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = width + 8; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.globalAlpha = alpha * 0.4;
+  ctx.strokeStyle = color; ctx.lineWidth = width + 4;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = width;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+}
+
+// Helper: draw a glowing circle
+function glowCircle(ctx, x, y, r, color, alpha) {
+  const grd = ctx.createRadialGradient(x, y, 0, x, y, r);
+  const c = hexToRgb(color);
+  grd.addColorStop(0, `rgba(255,255,255,${alpha})`);
+  grd.addColorStop(0.3, `rgba(${c},${alpha*0.8})`);
+  grd.addColorStop(1, `rgba(${c},0)`);
+  ctx.fillStyle = grd;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+}
+
+// Helper: screen flash overlay
+function screenFlash(ctx, W, H, color, alpha) {
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawSkillEffect(ctx, skillId, cx, cy, W, H, t, color) {
+  ctx.save();
+  ctx.lineCap = 'round';
+
+  switch(skillId) {
+    case 'bash': {
+      // RO-style: Big diagonal slash with bright white core + colored glow + hit sparks
+      const p = Math.min(t * 4, 1);
+      const fade = Math.max(0, 1 - (t-0.2)*2);
+      if (t < 0.05) screenFlash(ctx, W, H, '#ffffff', 0.3);
+      // Main slash
+      glowLine(ctx, cx-50*p, cy-50*p, cx+50*p, cy+50*p, color, 4, fade);
+      glowLine(ctx, cx+40*p, cy-45*p, cx-40*p, cy+45*p, color, 3, fade*0.8);
+      // Third cross slash
+      glowLine(ctx, cx-10, cy-55*p, cx+10, cy+55*p, '#ffffff', 2, fade*0.5);
+      // Impact sparks - large, bright
+      for (let i = 0; i < 12; i++) {
+        const a = (i/12)*Math.PI*2 + t*6;
+        const r = 15 + p * 55;
+        const sparkAlpha = Math.max(0, fade * (0.9 - i*0.05));
+        ctx.fillStyle = i%3===0 ? '#ffffff' : i%3===1 ? color : '#ffee88';
+        ctx.globalAlpha = sparkAlpha;
+        ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r, cy+Math.sin(a)*r, 3+Math.random()*2, 0, Math.PI*2); ctx.fill();
+      }
+      // Hit number flash
+      if (p > 0.3) glowCircle(ctx, cx, cy, 30*(1-fade), color, fade*0.5);
+      break;
+    }
+    case 'magnum_break': {
+      // RO-style: Massive expanding fire ring with layered flames
+      const p = Math.min(t*1.5, 1);
+      if (t < 0.08) screenFlash(ctx, W, H, '#ff4400', 0.4);
+      // Multiple expanding fire rings
+      for (let ring = 0; ring < 3; ring++) {
+        const rp = Math.max(0, p - ring*0.1);
+        const r = rp * 100;
+        const fade = Math.max(0, 1 - rp*0.8);
+        ctx.strokeStyle = ring===0 ? '#ff6600' : ring===1 ? '#ff4400' : '#ff2200';
+        ctx.lineWidth = (8 - ring*2) * fade;
+        ctx.globalAlpha = fade * 0.7;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+      }
+      // 20 fire particles exploding outward
+      for (let i = 0; i < 20; i++) {
+        const a = (i/20)*Math.PI*2 + i*0.3;
+        const pr = p * (60 + i*3);
+        const flicker = Math.sin(t*12+i*2)*5;
+        ctx.fillStyle = i%3===0 ? '#ffffff' : i%3===1 ? '#ffaa00' : '#ff4400';
+        ctx.globalAlpha = Math.max(0, (1-p)*0.9);
+        glowCircle(ctx, cx+Math.cos(a)*pr, cy+Math.sin(a)*pr+flicker, 6+Math.random()*4, '#ff4400', Math.max(0,(1-p)*0.7));
+      }
+      // Central explosion flash
+      if (p < 0.4) glowCircle(ctx, cx, cy, 40*(1-p*2), '#ffaa00', 0.6*(1-p*2));
+      break;
+    }
+    case 'sonic_blow': {
+      // RO-style: 8-hit rapid slash combo with afterimages
+      const hitCount = Math.min(Math.floor(t * 16), 8);
+      if (hitCount > 0 && t*16 % 1 < 0.3) screenFlash(ctx, W, H, '#cc44ff', 0.15);
+      for (let i = 0; i < hitCount; i++) {
+        const age = t - i/16;
+        const fade = Math.max(0, 1 - age*4);
+        const a = (i/8)*Math.PI*2 + i*0.7;
+        const len = 60;
+        const ox = Math.cos(a+Math.PI)*8, oy = Math.sin(a+Math.PI)*8;
+        glowLine(ctx, cx+ox, cy+oy, cx+Math.cos(a)*len+ox, cy+Math.sin(a)*len+oy, '#cc44ff', 3, fade);
+        // Hit spark at tip
+        if (fade > 0.3) glowCircle(ctx, cx+Math.cos(a)*len*0.7+ox, cy+Math.sin(a)*len*0.7+oy, 12, '#ffffff', fade*0.5);
+      }
+      // Speed lines around character
+      for (let i = 0; i < 8; i++) {
+        const a = (i/8)*Math.PI*2 + t*5;
+        ctx.strokeStyle = '#aa44ff'; ctx.lineWidth = 1; ctx.globalAlpha = 0.3;
+        ctx.beginPath(); ctx.moveTo(cx+Math.cos(a)*30, cy+Math.sin(a)*30);
+        ctx.lineTo(cx+Math.cos(a)*55, cy+Math.sin(a)*55); ctx.stroke();
+      }
+      break;
+    }
+    case 'fire_bolt': {
+      // RO-style: Multiple fire bolts (3 projectiles) with bright trails
+      for (let b = 0; b < 3; b++) {
+        const delay = b * 0.2;
+        const bt = Math.max(0, t - delay);
+        const px = -40 + bt * 250;
+        const py = cy - 20 + (b-1)*15;
+        if (px > W+20 || bt <= 0) continue;
+        // Glow trail
+        for (let i = 1; i <= 8; i++) {
+          const tx = px - i*10;
+          ctx.fillStyle = i<3 ? '#ffaa00' : '#ff4400';
+          ctx.globalAlpha = Math.max(0, 0.7 - i*0.08);
+          ctx.beginPath(); ctx.arc(tx, py+Math.sin(t*10+i)*2, 5-i*0.4, 0, Math.PI*2); ctx.fill();
+        }
+        // Main fireball with white-hot core
+        glowCircle(ctx, px, py, 18, '#ff4400', 0.8);
+        ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.9;
+        ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
+      }
+      // Impact flash when first bolt hits center
+      if (t > 0.5 && t < 0.7) {
+        const ip = (t-0.5)*5;
+        screenFlash(ctx, W, H, '#ff4400', 0.2*(1-ip));
+        glowCircle(ctx, cx, cy-20, 40*ip, '#ff6600', 0.6*(1-ip));
+      }
+      break;
+    }
+    case 'storm_gust': {
+      // Use real storm_gust sprite if loaded + dramatic ice blizzard
+      const sgImg = effectImages['storm_gust'];
+      // Blizzard vortex - 30 ice particles in spiral
+      for (let i = 0; i < 30; i++) {
+        const a = (i/30)*Math.PI*2 + t*4;
+        const r = 15 + (i/30)*60 + Math.sin(t*6+i)*10;
+        const x = cx + Math.cos(a)*r, y = cy + Math.sin(a)*r*0.6;
+        // Draw real sprite or ice crystal
+        if (sgImg && i%5===0) {
+          ctx.globalAlpha = 0.7 + Math.sin(t*8+i)*0.2;
+          ctx.drawImage(sgImg, x-16, y-16, 32, 32);
+        } else {
+          ctx.fillStyle = i%4===0 ? '#ffffff' : i%4===1 ? '#aaeeff' : i%4===2 ? '#88ddff' : '#66bbee';
+          ctx.globalAlpha = 0.7 + Math.sin(t*8+i)*0.2;
+          ctx.save(); ctx.translate(x, y); ctx.rotate(t*3+i);
+          // Diamond ice crystal shape
+          ctx.beginPath(); ctx.moveTo(0,-5); ctx.lineTo(3,0); ctx.lineTo(0,5); ctx.lineTo(-3,0); ctx.closePath(); ctx.fill();
+          ctx.restore();
+        }
+      }
+      // Central blizzard glow
+      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 70);
+      grd.addColorStop(0, 'rgba(200,240,255,0.4)');
+      grd.addColorStop(0.5, 'rgba(136,221,255,0.2)');
+      grd.addColorStop(1, 'rgba(100,180,255,0)');
+      ctx.fillStyle = grd; ctx.globalAlpha = 0.6 + Math.sin(t*3)*0.2;
+      ctx.beginPath(); ctx.arc(cx, cy, 70, 0, Math.PI*2); ctx.fill();
+      // Freeze flash
+      if (Math.sin(t*8) > 0.9) screenFlash(ctx, W, H, '#aaeeff', 0.15);
+      break;
+    }
+    case 'heal': {
+      // RO-style: Column of green light + rising sparkles + healing numbers
+      // Light column from below
+      const grd = ctx.createLinearGradient(cx, cy+60, cx, cy-80);
+      grd.addColorStop(0, 'rgba(68,255,102,0)');
+      grd.addColorStop(0.3, 'rgba(68,255,102,0.4)');
+      grd.addColorStop(0.7, 'rgba(136,255,170,0.3)');
+      grd.addColorStop(1, 'rgba(68,255,102,0)');
+      ctx.fillStyle = grd; ctx.globalAlpha = 0.6 + Math.sin(t*5)*0.2;
+      ctx.fillRect(cx-20, cy-80, 40, 140);
+      // 16 rising sparkles
+      for (let i = 0; i < 16; i++) {
+        const yOff = ((t*80 + i*10) % 120) - 60;
+        const xOff = Math.sin(t*3 + i*0.6) * 25;
+        const sz = 2 + Math.sin(t*6+i)*2;
+        ctx.fillStyle = i%3===0 ? '#ffffff' : i%3===1 ? '#44ff66' : '#88ffaa';
+        ctx.globalAlpha = Math.max(0, 0.9 - (yOff+60)/120);
+        ctx.beginPath(); ctx.arc(cx+xOff, cy-yOff, sz, 0, Math.PI*2); ctx.fill();
+      }
+      // Large + symbols
+      for (let i = 0; i < 3; i++) {
+        const py = cy - 30 - ((t*50+i*25)%70);
+        const px = cx + Math.sin(i*2.5)*15;
+        ctx.fillStyle = '#44ff66'; ctx.globalAlpha = Math.max(0, 0.8 - ((t*50+i*25)%70)/70);
+        ctx.fillRect(px-1, py-8, 3, 16); ctx.fillRect(px-7, py-1, 15, 3);
+      }
+      break;
+    }
+    case 'holy_light': {
+      // RO-style: Massive divine beam from sky with particle burst
+      const p = Math.min(t*2, 1);
+      if (t < 0.1) screenFlash(ctx, W, H, '#ffee88', 0.35);
+      // Wide beam from top
+      const beamW = 30 + Math.sin(t*8)*5;
+      const grd = ctx.createLinearGradient(cx, 0, cx, cy+30);
+      grd.addColorStop(0, 'rgba(255,255,200,0.1)');
+      grd.addColorStop(0.4, 'rgba(255,238,136,0.7)');
+      grd.addColorStop(0.8, 'rgba(255,238,136,0.5)');
+      grd.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = grd; ctx.globalAlpha = Math.max(0, 1 - t*0.5);
+      ctx.beginPath(); ctx.moveTo(cx-beamW*1.5, 0); ctx.lineTo(cx+beamW*1.5, 0);
+      ctx.lineTo(cx+beamW*0.5, cy+30); ctx.lineTo(cx-beamW*0.5, cy+30); ctx.fill();
+      // White core beam
+      ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.globalAlpha = Math.max(0, 0.8-t*0.4);
+      ctx.fillRect(cx-6, 0, 12, cy+30);
+      // Burst particles at impact
+      for (let i = 0; i < 12; i++) {
+        const a = (i/12)*Math.PI*2 + t*2;
+        const r = p * 50;
+        ctx.fillStyle = i%2 ? '#ffee88' : '#ffffff';
+        ctx.globalAlpha = Math.max(0, (1-p)*0.8);
+        ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r, cy+Math.sin(a)*r, 3, 0, Math.PI*2); ctx.fill();
+      }
+      break;
+    }
+    case 'kyrie_eleison': {
+      // RO-style: Glowing protective dome/barrier with orbiting crosses
+      const pulse = Math.sin(t*4)*0.15;
+      // Dome shape
+      ctx.strokeStyle = '#88ccff'; ctx.lineWidth = 3;
+      ctx.globalAlpha = 0.5 + pulse;
+      ctx.beginPath(); ctx.ellipse(cx, cy, 50, 65, 0, 0, Math.PI*2); ctx.stroke();
+      // Inner glow
+      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 55);
+      grd.addColorStop(0, 'rgba(170,220,255,0.15)');
+      grd.addColorStop(0.7, 'rgba(136,204,255,0.08)');
+      grd.addColorStop(1, 'rgba(136,204,255,0)');
+      ctx.fillStyle = grd; ctx.globalAlpha = 0.6;
+      ctx.beginPath(); ctx.arc(cx, cy, 55, 0, Math.PI*2); ctx.fill();
+      // 6 orbiting light particles
+      for (let i = 0; i < 6; i++) {
+        const a = (i/6)*Math.PI*2 + t*2.5;
+        const ox = cx + Math.cos(a)*48, oy = cy + Math.sin(a)*33;
+        glowCircle(ctx, ox, oy, 8, '#88ccff', 0.6 + Math.sin(t*6+i)*0.2);
+      }
+      // Hexagonal runes rotating
+      ctx.strokeStyle = '#aaddff'; ctx.lineWidth = 1; ctx.globalAlpha = 0.3;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(t*0.5);
+      ctx.beginPath();
+      for (let i = 0; i <= 6; i++) { const a = (i/6)*Math.PI*2; ctx.lineTo(Math.cos(a)*55, Math.sin(a)*40); }
+      ctx.stroke(); ctx.restore();
+      break;
+    }
+    case 'meteor_storm': {
+      // RO-style: Giant meteors with fire trails + ground explosions
+      // Warning circle on ground
+      ctx.strokeStyle = '#ff4400'; ctx.lineWidth = 2; ctx.globalAlpha = 0.3 + Math.sin(t*6)*0.1;
+      ctx.setLineDash([5,5]); ctx.lineDashOffset = -t*20;
+      ctx.beginPath(); ctx.ellipse(cx, cy+15, 70, 40, 0, 0, Math.PI*2); ctx.stroke();
+      ctx.setLineDash([]);
+      // 6 large meteors staggered
+      for (let i = 0; i < 6; i++) {
+        const mt = (t*1.2 + i*0.18) % 1.2;
+        const mx = cx - 60 + (i%3)*40 + mt*25;
+        const my = -40 + mt * (H+60);
+        const sz = 8 + i*2;
+        if (mt > 1.0) {
+          // Ground explosion
+          const ep = (mt-1.0)*5;
+          glowCircle(ctx, mx, cy+5, 30*ep, '#ff4400', Math.max(0, 0.8-ep));
+          if (ep < 0.3) screenFlash(ctx, W, H, '#ff6600', 0.15*(1-ep/0.3));
+        } else {
+          // Meteor body
+          glowCircle(ctx, mx, my, sz+8, '#ff4400', 0.5);
+          ctx.fillStyle = '#ff6600'; ctx.globalAlpha = 0.9;
+          ctx.beginPath(); ctx.arc(mx, my, sz, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#ffcc44'; ctx.globalAlpha = 0.8;
+          ctx.beginPath(); ctx.arc(mx, my, sz*0.5, 0, Math.PI*2); ctx.fill();
+          // Fire trail
+          for (let j = 1; j <= 8; j++) {
+            ctx.fillStyle = j<3 ? '#ffaa00' : '#ff4400';
+            ctx.globalAlpha = Math.max(0, 0.6 - j*0.07);
+            ctx.beginPath(); ctx.arc(mx-j*4, my-j*5, sz-j*0.8, 0, Math.PI*2); ctx.fill();
+          }
+        }
+      }
+      break;
+    }
+    case 'asura_strike': {
+      // RO-style: MASSIVE screen-filling energy explosion
+      const p = Math.min(t*1.8, 1);
+      // Screen flash phases
+      if (t < 0.15) screenFlash(ctx, W, H, '#ffffff', 0.8*(1-t/0.15));
+      else if (t < 0.3) screenFlash(ctx, W, H, '#ffaa00', 0.3);
+      // Massive energy sphere
+      const r = p * 120;
+      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, r||1);
+      grd.addColorStop(0, 'rgba(255,255,255,0.9)');
+      grd.addColorStop(0.2, 'rgba(255,220,80,0.7)');
+      grd.addColorStop(0.5, 'rgba(255,100,0,0.4)');
+      grd.addColorStop(1, 'rgba(255,0,0,0)');
+      ctx.fillStyle = grd; ctx.globalAlpha = Math.max(0, 1 - t*0.5);
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
+      // Multiple shockwave rings
+      for (let i = 0; i < 4; i++) {
+        const rr = Math.max(0, p - i*0.1) * 130;
+        ctx.strokeStyle = i===0 ? '#ffffff' : '#ffaa00';
+        ctx.lineWidth = (6-i*1.5) * Math.max(0, 1-p);
+        ctx.globalAlpha = Math.max(0, (1-p)*0.8 - i*0.1);
+        ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI*2); ctx.stroke();
+      }
+      // Energy rays shooting outward
+      for (let i = 0; i < 16; i++) {
+        const a = (i/16)*Math.PI*2 + i*0.2;
+        const len = p * 130;
+        ctx.strokeStyle = i%2 ? '#ffcc44' : '#ffffff';
+        ctx.lineWidth = 2; ctx.globalAlpha = Math.max(0, (1-p)*0.6);
+        ctx.beginPath(); ctx.moveTo(cx+Math.cos(a)*20, cy+Math.sin(a)*20);
+        ctx.lineTo(cx+Math.cos(a)*len, cy+Math.sin(a)*len); ctx.stroke();
+      }
+      break;
+    }
+    case 'poison_breath': {
+      // RO-style: Large toxic cloud expanding with dripping poison
+      // Expanding poison cloud (layered circles)
+      for (let i = 0; i < 18; i++) {
+        const a = (i/18)*Math.PI*2 + t*1.5 + Math.sin(i*1.3)*0.5;
+        const r = 20 + Math.sin(t*2+i*0.7)*20 + i*2;
+        const sz = 12 + Math.sin(t*4+i)*5;
+        ctx.fillStyle = i%4===0 ? '#22aa22' : i%4===1 ? '#44cc44' : i%4===2 ? '#338833' : '#55dd55';
+        ctx.globalAlpha = 0.25 + Math.sin(t*3+i)*0.1;
+        ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r, cy+Math.sin(a)*r, sz, 0, Math.PI*2); ctx.fill();
+      }
+      // Poison drips falling
+      for (let i = 0; i < 6; i++) {
+        const dx = cx - 25 + i*10;
+        const dy = cy + 10 + ((t*60+i*20)%40);
+        ctx.fillStyle = '#44ff44'; ctx.globalAlpha = Math.max(0, 0.6 - ((t*60+i*20)%40)/40);
+        ctx.beginPath(); ctx.arc(dx, dy, 2, 0, Math.PI*2); ctx.fill();
+      }
+      // Skull icon
+      ctx.globalAlpha = 0.4 + Math.sin(t*4)*0.2;
+      ctx.fillStyle = '#88ff88'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('☠', cx, cy-50);
+      break;
+    }
+    case 'provoke': {
+      // RO-style: Large angry vein pop + red pulsing aura + stat arrows
+      // Red rage aura
+      for (let i = 0; i < 4; i++) {
+        const r = 20 + ((t*50 + i*18) % 70);
+        ctx.strokeStyle = '#ff2222'; ctx.lineWidth = (5-i)*Math.max(0,1-r/70);
+        ctx.globalAlpha = Math.max(0, 0.5 - r/80);
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+      }
+      // Large anger vein (RO style - # symbol)
+      const vx = cx + 30, vy = cy - 45;
+      const vp = 0.7 + Math.sin(t*8)*0.3;
+      ctx.strokeStyle = '#ff2222'; ctx.lineWidth = 4; ctx.globalAlpha = vp;
+      // Cross pattern
+      ctx.beginPath(); ctx.moveTo(vx-8, vy-2); ctx.lineTo(vx+2, vy-2); ctx.lineTo(vx+2, vy+8); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(vx+8, vy+2); ctx.lineTo(vx-2, vy+2); ctx.lineTo(vx-2, vy-8); ctx.stroke();
+      // DEF down arrow (big)
+      ctx.fillStyle = '#ff4444'; ctx.globalAlpha = 0.7 + Math.sin(t*5)*0.2;
+      ctx.beginPath(); ctx.moveTo(cx-40, cy-10); ctx.lineTo(cx-30, cy+8); ctx.lineTo(cx-50, cy+8); ctx.closePath(); ctx.fill();
+      // ATK up arrow
+      ctx.fillStyle = '#44ff44'; ctx.globalAlpha = 0.7 + Math.sin(t*5)*0.2;
+      ctx.beginPath(); ctx.moveTo(cx+40, cy+8); ctx.lineTo(cx+30, cy-10); ctx.lineTo(cx+50, cy-10); ctx.closePath(); ctx.fill();
+      break;
+    }
+    case 'berserk': {
+      // RO-style: Intense red aura with energy flames rising
+      // Pulsing energy waves
+      for (let i = 0; i < 5; i++) {
+        const r = 15 + ((t*55 + i*16) % 80);
+        ctx.strokeStyle = i%2 ? '#ff0000' : '#cc0000';
+        ctx.lineWidth = (6-i) * Math.max(0, 1-r/80);
+        ctx.globalAlpha = Math.max(0, 0.5 - r/100);
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+      }
+      // Rising fire/energy flames
+      for (let i = 0; i < 20; i++) {
+        const yOff = ((t*60 + i*8) % 100) - 50;
+        const xOff = Math.sin(t*3 + i*0.8) * (25 + i*0.5);
+        const sz = 3 + Math.sin(t*6+i)*2;
+        ctx.fillStyle = i%4===0 ? '#ffffff' : i%4===1 ? '#ff0000' : i%4===2 ? '#ff4444' : '#ff8800';
+        ctx.globalAlpha = Math.max(0, 0.8 - (yOff+50)/100);
+        ctx.beginPath(); ctx.arc(cx+xOff, cy-yOff, sz, 0, Math.PI*2); ctx.fill();
+      }
+      // Body glow
+      glowCircle(ctx, cx, cy, 40, '#ff0000', 0.25 + Math.sin(t*4)*0.1);
+      // "BERSERK" flicker
+      if (Math.sin(t*6) > 0.7) screenFlash(ctx, W, H, '#ff0000', 0.08);
+      break;
+    }
+    case 'cloaking': {
+      // RO-style: Dramatic fade with ripple distortion + shadow dissolve
+      const fade = Math.min(t*2, 1);
+      // Ripple rings expanding from character
+      for (let i = 0; i < 3; i++) {
+        const rr = ((t*40+i*15)%50);
+        ctx.strokeStyle = '#aaaacc'; ctx.lineWidth = 2;
+        ctx.globalAlpha = Math.max(0, 0.4 - rr/50) * (1-fade*0.5);
+        ctx.beginPath(); ctx.arc(cx, cy, rr+10, 0, Math.PI*2); ctx.stroke();
+      }
+      // Dissolving pixel scatter (40 particles)
+      for (let i = 0; i < 40; i++) {
+        const px = cx + (Math.sin(i*3.7+t*1.5)-0.5)*80;
+        const py = cy + (Math.cos(i*2.3+t*1.2)-0.5)*100;
+        const drift = fade * 30;
+        ctx.fillStyle = i%3===0 ? '#ddddff' : '#aaaacc';
+        ctx.globalAlpha = Math.max(0, (0.7-fade*0.6) * Math.abs(Math.sin(i+t*3)));
+        ctx.fillRect(px + (Math.sin(i)*drift), py, 3, 3);
+      }
+      // Ghost silhouette fading
+      ctx.strokeStyle = '#8888aa'; ctx.lineWidth = 1.5;
+      ctx.globalAlpha = Math.max(0, 0.5 - fade*0.5);
+      ctx.beginPath(); ctx.ellipse(cx, cy, 25, 40, 0, 0, Math.PI*2); ctx.stroke();
+      break;
+    }
+    case 'cross_impact': {
+      // RO-style: Fast dash with afterimages + giant X slash + impact explosion
+      const dashP = Math.min(t*4, 1);
+      // Dash speed lines
+      if (dashP < 0.6) {
+        for (let i = 0; i < 10; i++) {
+          const lx = cx - 80 + dashP*80 + i*5;
+          ctx.strokeStyle = '#cc44ff'; ctx.lineWidth = 1.5;
+          ctx.globalAlpha = 0.4 * (1-dashP);
+          ctx.beginPath(); ctx.moveTo(lx, cy-30+i*6); ctx.lineTo(lx-25, cy-30+i*6); ctx.stroke();
+        }
+      }
+      // Giant X slash
+      if (dashP > 0.4) {
+        const sp = Math.min((dashP-0.4)*3, 1);
+        if (sp < 0.2) screenFlash(ctx, W, H, '#cc44ff', 0.25);
+        glowLine(ctx, cx-55*sp, cy-55*sp, cx+55*sp, cy+55*sp, '#cc44ff', 5, Math.max(0, 1-sp*0.3));
+        glowLine(ctx, cx+55*sp, cy-55*sp, cx-55*sp, cy+55*sp, '#aa22dd', 5, Math.max(0, 1-sp*0.3));
+        // Impact sparks
+        for (let i = 0; i < 10; i++) {
+          const a = (i/10)*Math.PI*2 + t*4;
+          const r = sp * 50;
+          ctx.fillStyle = i%2 ? '#ffffff' : '#cc44ff';
+          ctx.globalAlpha = Math.max(0, (1-sp)*0.7);
+          ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r, cy+Math.sin(a)*r, 3, 0, Math.PI*2); ctx.fill();
+        }
+      }
+      break;
+    }
+    case 'holy_cross': {
+      // RO-style: Large golden cross with divine glow + sparkle burst
+      const p = Math.min(t*3, 1);
+      const fade = Math.max(0, 1 - (t-0.3)*2);
+      if (t < 0.06) screenFlash(ctx, W, H, '#ffee88', 0.3);
+      // Cross with glow
+      glowLine(ctx, cx, cy-60*p, cx, cy+60*p, '#ffee88', 5, fade);
+      glowLine(ctx, cx-45*p, cy, cx+45*p, cy, '#ffee88', 5, fade);
+      // Sparkle burst at cross ends
+      for (let i = 0; i < 8; i++) {
+        const a = (i/8)*Math.PI*2 + t*2;
+        const r = 50*p;
+        glowCircle(ctx, cx+Math.cos(a)*r, cy+Math.sin(a)*r, 8, '#ffdd44', fade*0.5);
+      }
+      // Central holy glow
+      glowCircle(ctx, cx, cy, 30*p, '#ffee88', fade*0.4);
+      break;
+    }
+    case 'grand_cross': {
+      // RO-style: Massive holy cross AoE filling screen
+      const p = Math.min(t*1.5, 1);
+      if (t < 0.1) screenFlash(ctx, W, H, '#ffee88', 0.5);
+      // Huge radiating glow
+      glowCircle(ctx, cx, cy, 100*p, '#ffdd44', Math.max(0, 0.4-t*0.2));
+      // Thick cross beams with glow
+      const bw = 12, bl = 90*p;
+      ctx.fillStyle = '#ffee88'; ctx.globalAlpha = Math.max(0, 0.7 - t*0.3);
+      ctx.fillRect(cx-bw/2, cy-bl, bw, bl*2);
+      ctx.fillRect(cx-bl, cy-bw/2, bl*2, bw);
+      // White core
+      ctx.fillStyle = '#ffffff'; ctx.globalAlpha = Math.max(0, 0.5 - t*0.25);
+      ctx.fillRect(cx-3, cy-bl, 6, bl*2);
+      ctx.fillRect(cx-bl, cy-3, bl*2, 6);
+      // Rotating light particles
+      for (let i = 0; i < 12; i++) {
+        const a = (i/12)*Math.PI*2 + t*1.5;
+        const r = 70*p;
+        ctx.fillStyle = '#ffee88'; ctx.globalAlpha = Math.max(0, 0.6-t*0.3) + Math.sin(t*5+i)*0.1;
+        ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r, cy+Math.sin(a)*r, 4, 0, Math.PI*2); ctx.fill();
+      }
+      break;
+    }
+    case 'devotion': {
+      // RO-style: Glowing beam link with pulsing hearts
+      const pulse = Math.sin(t*4)*0.2;
+      // Beam with glow (going to ally above)
+      const grd = ctx.createLinearGradient(cx, cy, cx+50, cy-70);
+      grd.addColorStop(0, 'rgba(136,204,255,0.6)');
+      grd.addColorStop(0.5, 'rgba(170,220,255,0.8)');
+      grd.addColorStop(1, 'rgba(136,204,255,0.3)');
+      ctx.strokeStyle = grd; ctx.lineWidth = 4 + pulse*3;
+      ctx.globalAlpha = 0.7 + pulse;
+      ctx.beginPath(); ctx.moveTo(cx, cy-10); ctx.quadraticCurveTo(cx+30, cy-40, cx+50, cy-70); ctx.stroke();
+      // Glow around beam
+      ctx.strokeStyle = '#aaddff'; ctx.lineWidth = 10; ctx.globalAlpha = 0.15;
+      ctx.beginPath(); ctx.moveTo(cx, cy-10); ctx.quadraticCurveTo(cx+30, cy-40, cx+50, cy-70); ctx.stroke();
+      // Pulsing particles along beam
+      for (let i = 0; i < 6; i++) {
+        const bt = (t*2 + i/6) % 1;
+        const bx = cx + bt*50, by = cy-10 + (-70+10)*bt + Math.sin(bt*Math.PI)*(-20);
+        glowCircle(ctx, bx, by, 8, '#88ccff', 0.5 + Math.sin(t*6+i)*0.2);
+      }
+      // Heart at target
+      ctx.fillStyle = '#ff88aa'; ctx.globalAlpha = 0.6 + Math.sin(t*4)*0.2;
+      ctx.font = '16px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('♥', cx+50, cy-68);
+      break;
+    }
+    case 'shield_boomerang': {
+      // RO-style: Large spinning shield with energy trail
+      const angle = t * Math.PI * 5;
+      const outDist = Math.sin(t*Math.PI*1.2) * 90;
+      const sx = cx + Math.cos(angle*0.4) * outDist;
+      const sy = cy - 15 + Math.sin(angle*0.8) * 15;
+      // Energy trail
+      for (let i = 1; i <= 10; i++) {
+        const pa = angle - i*0.3;
+        const pd = Math.sin((t-i*0.02)*Math.PI*1.2) * 90;
+        const tx = cx + Math.cos(pa*0.4)*pd;
+        const ty = cy - 15 + Math.sin(pa*0.8)*15;
+        ctx.fillStyle = '#aaccee'; ctx.globalAlpha = 0.3 - i*0.025;
+        ctx.beginPath(); ctx.arc(tx, ty, 6-i*0.4, 0, Math.PI*2); ctx.fill();
+      }
+      // Shield with glow
+      glowCircle(ctx, sx, sy, 20, '#8888cc', 0.4);
+      ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle*2);
+      // Shield shape
+      ctx.fillStyle = '#aabbdd'; ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.moveTo(0,-14); ctx.lineTo(12,-4); ctx.lineTo(10,10); ctx.lineTo(0,14);
+      ctx.lineTo(-10,10); ctx.lineTo(-12,-4); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#667799'; ctx.lineWidth = 2; ctx.stroke();
+      // Shield cross detail
+      ctx.strokeStyle = '#ccddee'; ctx.lineWidth = 2; ctx.globalAlpha = 0.7;
+      ctx.beginPath(); ctx.moveTo(0,-10); ctx.lineTo(0,10); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-8,0); ctx.lineTo(8,0); ctx.stroke();
+      ctx.restore();
+      break;
+    }
+    case 'backstab': {
+      // RO-style: Shadow dash behind + massive slash + blood splatter
+      const p = Math.min(t*3, 1);
+      if (p > 0.3 && p < 0.5) screenFlash(ctx, W, H, '#ff8844', 0.2);
+      // Shadow figure dashing
+      if (p < 0.5) {
+        const dp = p*2;
+        ctx.fillStyle = '#221111'; ctx.globalAlpha = 0.5*(1-dp);
+        ctx.beginPath(); ctx.ellipse(cx-40+dp*55, cy, 12-dp*5, 30, dp*0.3, 0, Math.PI*2); ctx.fill();
+      }
+      // Big arc slash
+      if (p > 0.3) {
+        const sp = (p-0.3)*1.5;
+        glowLine(ctx, cx-35, cy+30, cx+40, cy-40, '#ff8844', 5, Math.max(0, 1-sp));
+        glowLine(ctx, cx-30, cy+35, cx+35, cy-35, '#ffaa66', 3, Math.max(0, 0.8-sp));
+      }
+      // Blood splatter particles
+      if (p > 0.4) {
+        for (let i = 0; i < 12; i++) {
+          const a = (i/12)*Math.PI*2 + i*0.5;
+          const r = (p-0.4)*80;
+          ctx.fillStyle = i%2 ? '#ff2222' : '#cc0000';
+          ctx.globalAlpha = Math.max(0, 0.7 - (p-0.4)*1.5);
+          ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r, cy+Math.sin(a)*r, 2+Math.random()*2, 0, Math.PI*2); ctx.fill();
+        }
+      }
+      break;
+    }
+    case 'strip_armor': {
+      // RO-style: Armor shattering with bright metal sparks
+      const p = Math.min(t*2.5, 1);
+      if (t < 0.08) screenFlash(ctx, W, H, '#ffaa44', 0.2);
+      // Metal shards flying out
+      for (let i = 0; i < 14; i++) {
+        const a = (i/14)*Math.PI*2 + i*0.4;
+        const r = p * (30 + i*5);
+        const sz = 4 - p*2;
+        ctx.fillStyle = i%3===0 ? '#ffffff' : i%3===1 ? '#ffdd88' : '#ffaa44';
+        ctx.globalAlpha = Math.max(0, 0.9 - p*0.7);
+        ctx.save(); ctx.translate(cx+Math.cos(a)*r, cy+Math.sin(a)*r+p*i*2); ctx.rotate(a+t*8);
+        ctx.fillRect(-sz, -sz*0.5, sz*2, sz); ctx.restore();
+      }
+      // Central break flash
+      if (p < 0.3) glowCircle(ctx, cx, cy, 25*(1-p*3), '#ffdd88', 0.6);
+      // Broken shield icon
+      ctx.strokeStyle = '#ffaa44'; ctx.lineWidth = 3; ctx.globalAlpha = 0.6 + Math.sin(t*5)*0.2;
+      ctx.beginPath(); ctx.moveTo(cx-12, cy-35); ctx.lineTo(cx, cy-48); ctx.lineTo(cx+12, cy-35); ctx.stroke();
+      // Crack line through shield
+      ctx.strokeStyle = '#ff6644'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx-5, cy-48); ctx.lineTo(cx+3, cy-38); ctx.stroke();
+      break;
+    }
+    case 'intimidate': {
+      // RO-style: Teleport vanish + reappear strike with warp effect
+      const p = (t*1.5 % 1.5);
+      if (p < 0.3) {
+        // Vanish with implosion
+        const vp = p/0.3;
+        glowCircle(ctx, cx-40, cy, 30*(1-vp), '#aa66ff', 0.6*(1-vp));
+        // Imploding particles
+        for (let i = 0; i < 8; i++) {
+          const a = (i/8)*Math.PI*2;
+          ctx.fillStyle = '#cc88ff'; ctx.globalAlpha = 0.6*(1-vp);
+          ctx.beginPath(); ctx.arc(cx-40+Math.cos(a)*30*(1-vp), cy+Math.sin(a)*30*(1-vp), 3, 0, Math.PI*2); ctx.fill();
+        }
+      } else if (p < 0.5) {
+        // Warp distortion lines
+        const wp = (p-0.3)/0.2;
+        for (let i = 0; i < 10; i++) {
+          ctx.strokeStyle = '#cc88ff'; ctx.globalAlpha = 0.5 * Math.sin(wp*Math.PI);
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(cx-30+i*7, cy-50); ctx.lineTo(cx-30+i*7+Math.sin(t*20+i)*8, cy+50); ctx.stroke();
+        }
+      } else {
+        // Reappear + explosive strike
+        const sp = (p-0.5)*2;
+        if (sp < 0.2) screenFlash(ctx, W, H, '#aa66ff', 0.25);
+        glowCircle(ctx, cx+30, cy, 35*sp, '#aa66ff', Math.max(0, 0.7-sp*0.5));
+        glowLine(ctx, cx+10, cy-40*sp, cx+50, cy+35*sp, '#ff88cc', 4, Math.max(0, 1-sp));
+      }
+      break;
+    }
+    case 'close_confine': {
+      // RO-style: Magical prison cage with rotating runes
+      const pulse = Math.sin(t*4)*0.15;
+      // Cage bars
+      ctx.strokeStyle = '#ff4488'; ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.6 + pulse;
+      for (let i = 0; i < 8; i++) {
+        const a = (i/8)*Math.PI*2 + t*0.5;
+        const x1 = cx + Math.cos(a)*45, y1 = cy - 50;
+        const x2 = cx + Math.cos(a)*45, y2 = cy + 40;
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      }
+      // Rotating rune circle
+      ctx.save(); ctx.translate(cx, cy+15); ctx.rotate(t*1.5);
+      ctx.strokeStyle = '#ff4488'; ctx.lineWidth = 2; ctx.globalAlpha = 0.5 + pulse;
+      ctx.beginPath();
+      for (let i = 0; i <= 6; i++) { const a = (i/6)*Math.PI*2; ctx.lineTo(Math.cos(a)*50, Math.sin(a)*30); }
+      ctx.stroke();
+      ctx.restore();
+      // Corner energy nodes
+      for (let i = 0; i < 4; i++) {
+        const dx = i<2?-1:1, dy = i%2===0?-1:1;
+        glowCircle(ctx, cx+dx*48, cy+dy*42, 10, '#ff4488', 0.5+Math.sin(t*6+i)*0.2);
+      }
+      break;
+    }
+    case 'jupitel_thunder': {
+      // RO-style: Multiple forking lightning bolts with bright flash
+      if (Math.random() < 0.3) screenFlash(ctx, W, H, '#ffff88', 0.1);
+      // 3 lightning bolts
+      for (let bolt = 0; bolt < 3; bolt++) {
+        const boff = (bolt-1)*12;
+        const segments = [];
+        let lx = cx-80, ly = cy-15+boff;
+        segments.push({x:lx, y:ly});
+        for (let i = 0; i < 12; i++) {
+          lx += 14; ly = cy-15+boff + (Math.sin(t*20+i*3+bolt*7)-0.5)*25;
+          segments.push({x:lx, y:ly});
+        }
+        // Glow layer
+        ctx.strokeStyle = '#ffff88'; ctx.lineWidth = 8; ctx.globalAlpha = 0.15;
+        ctx.beginPath(); ctx.moveTo(segments[0].x, segments[0].y);
+        for (const s of segments) ctx.lineTo(s.x, s.y);
+        ctx.stroke();
+        // Main bolt
+        ctx.strokeStyle = '#ffff44'; ctx.lineWidth = 3; ctx.globalAlpha = 0.8;
+        ctx.beginPath(); ctx.moveTo(segments[0].x, segments[0].y);
+        for (const s of segments) ctx.lineTo(s.x, s.y);
+        ctx.stroke();
+        // White core
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.9;
+        ctx.beginPath(); ctx.moveTo(segments[0].x, segments[0].y);
+        for (const s of segments) ctx.lineTo(s.x, s.y);
+        ctx.stroke();
+      }
+      // Impact glow at target
+      glowCircle(ctx, cx+80, cy-15, 25, '#ffff44', 0.4 + Math.sin(t*10)*0.2);
+      break;
+    }
+    case 'fire_wall': {
+      // RO-style: Tall fire pillars with swirling flames and heat distortion
+      for (let i = 0; i < 7; i++) {
+        const fx = cx - 45 + i*15;
+        const flicker = Math.sin(t*10 + i*2.5) * 8;
+        const h = 55 + Math.sin(t*6+i*1.7)*10;
+        // Glow
+        glowCircle(ctx, fx, cy-h/2+flicker, 18, '#ff4400', 0.2);
+        // Outer flame
+        ctx.fillStyle = '#ff2200'; ctx.globalAlpha = 0.5 + Math.sin(t*8+i)*0.2;
+        ctx.beginPath(); ctx.moveTo(fx-8, cy+10); ctx.quadraticCurveTo(fx-10+flicker*0.3, cy-h/2, fx, cy-h+flicker);
+        ctx.quadraticCurveTo(fx+10-flicker*0.3, cy-h/2, fx+8, cy+10); ctx.fill();
+        // Inner flame (brighter)
+        ctx.fillStyle = '#ffaa00'; ctx.globalAlpha = 0.6;
+        ctx.beginPath(); ctx.moveTo(fx-4, cy+5); ctx.quadraticCurveTo(fx-5+flicker*0.2, cy-h*0.3, fx, cy-h*0.7+flicker);
+        ctx.quadraticCurveTo(fx+5-flicker*0.2, cy-h*0.3, fx+4, cy+5); ctx.fill();
+        // White-hot core
+        ctx.fillStyle = '#ffee88'; ctx.globalAlpha = 0.5;
+        ctx.beginPath(); ctx.moveTo(fx-2, cy); ctx.lineTo(fx, cy-h*0.4+flicker); ctx.lineTo(fx+2, cy); ctx.fill();
+        // Rising sparks
+        const sy = cy - h + ((t*80+i*20)%30) + flicker;
+        ctx.fillStyle = '#ffdd44'; ctx.globalAlpha = 0.7;
+        ctx.beginPath(); ctx.arc(fx+Math.sin(t*5+i)*4, sy, 2, 0, Math.PI*2); ctx.fill();
+      }
+      break;
+    }
+    case 'dispell': {
+      // RO-style: Bright sparkle burst with expanding ring + debuff removal effect
+      const p = Math.min(t*2, 1);
+      if (t < 0.06) screenFlash(ctx, W, H, '#ffffff', 0.3);
+      // Expanding dispel ring
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3*(1-p);
+      ctx.globalAlpha = Math.max(0, 0.8-p*0.7);
+      ctx.beginPath(); ctx.arc(cx, cy, p*80, 0, Math.PI*2); ctx.stroke();
+      // 20 sparkle stars bursting out
+      for (let i = 0; i < 20; i++) {
+        const a = (i/20)*Math.PI*2 + i*0.3;
+        const r = p * 70;
+        const x = cx+Math.cos(a)*r, y = cy+Math.sin(a)*r;
+        ctx.fillStyle = i%4===0 ? '#ffffff' : i%4===1 ? '#ddddff' : i%4===2 ? '#aaccff' : '#88aaff';
+        ctx.globalAlpha = Math.max(0, 0.9 - p*0.8);
+        // 4-pointed star
+        ctx.save(); ctx.translate(x, y); ctx.rotate(t*4+i);
+        const ss = 5 - p*3;
+        ctx.beginPath(); ctx.moveTo(0,-ss*2); ctx.lineTo(ss*0.3,0); ctx.lineTo(0,ss*2); ctx.lineTo(-ss*0.3,0); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-ss*2,0); ctx.lineTo(0,ss*0.3); ctx.lineTo(ss*2,0); ctx.lineTo(0,-ss*0.3); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+      break;
+    }
+    case 'volcano_buff': {
+      // RO-style: Volcanic ground with lava glow + large rising embers
+      // Ground lava glow
+      const grd = ctx.createRadialGradient(cx, cy+15, 5, cx, cy+15, 70);
+      grd.addColorStop(0, 'rgba(255,80,0,0.5)');
+      grd.addColorStop(0.4, 'rgba(255,50,0,0.3)');
+      grd.addColorStop(1, 'rgba(255,30,0,0)');
+      ctx.fillStyle = grd; ctx.globalAlpha = 0.5 + Math.sin(t*3)*0.2;
+      ctx.beginPath(); ctx.ellipse(cx, cy+15, 70, 40, 0, 0, Math.PI*2); ctx.fill();
+      // Lava cracks on ground
+      ctx.strokeStyle = '#ff4400'; ctx.lineWidth = 2; ctx.globalAlpha = 0.4 + Math.sin(t*4)*0.15;
+      for (let i = 0; i < 5; i++) {
+        const lx = cx-30+i*15;
+        ctx.beginPath(); ctx.moveTo(lx, cy+5+i*3); ctx.lineTo(lx+10+Math.sin(i)*5, cy+15+i*2); ctx.stroke();
+      }
+      // Large rising embers (12)
+      for (let i = 0; i < 12; i++) {
+        const yOff = ((t*50+i*12)%80);
+        const xOff = Math.sin(t*2.5+i*0.9) * 30;
+        const sz = 3 + Math.sin(t*5+i)*2;
+        ctx.fillStyle = i%3===0 ? '#ffffff' : i%3===1 ? '#ffaa00' : '#ff4400';
+        ctx.globalAlpha = Math.max(0, 0.8 - yOff/80);
+        ctx.beginPath(); ctx.arc(cx+xOff, cy+15-yOff, sz, 0, Math.PI*2); ctx.fill();
+      }
+      break;
+    }
+    case 'earth_spike': {
+      // RO-style: Large stone spikes erupting with debris
+      const p = Math.min(t*2.5, 1);
+      if (p > 0.1 && p < 0.25) screenFlash(ctx, W, H, '#aa8844', 0.15);
+      // Ground crack
+      ctx.strokeStyle = '#664422'; ctx.lineWidth = 2; ctx.globalAlpha = p*0.6;
+      ctx.beginPath(); ctx.moveTo(cx-60, cy+15); ctx.lineTo(cx+60, cy+15); ctx.stroke();
+      for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(cx-30+i*20, cy+15); ctx.lineTo(cx-25+i*20+Math.sin(i)*5, cy+25); ctx.stroke(); }
+      // 7 large spikes
+      for (let i = 0; i < 7; i++) {
+        const sx = cx - 50 + i*17;
+        const delay = Math.abs(i-3)*0.06;
+        const sp = Math.max(0, Math.min(1, (p - delay)*3));
+        const h = sp * (50 + (3-Math.abs(i-3))*10);
+        const w = 8 + (3-Math.abs(i-3))*2;
+        // Shadow side
+        ctx.fillStyle = '#664422'; ctx.globalAlpha = 0.8;
+        ctx.beginPath(); ctx.moveTo(sx-w, cy+15); ctx.lineTo(sx-2, cy+15-h); ctx.lineTo(sx+2, cy+15); ctx.closePath(); ctx.fill();
+        // Light side
+        ctx.fillStyle = i%2 ? '#aa8844' : '#997744'; ctx.globalAlpha = 0.9;
+        ctx.beginPath(); ctx.moveTo(sx+2, cy+15); ctx.lineTo(sx-2, cy+15-h); ctx.lineTo(sx+w, cy+15); ctx.closePath(); ctx.fill();
+        // Bright edge highlight
+        ctx.strokeStyle = '#ccaa66'; ctx.lineWidth = 1; ctx.globalAlpha = 0.5;
+        ctx.beginPath(); ctx.moveTo(sx-1, cy+15-h); ctx.lineTo(sx+w-2, cy+15); ctx.stroke();
+        // Debris particles on emerge
+        if (sp > 0.3 && sp < 0.8) {
+          for (let j = 0; j < 3; j++) {
+            const da = -Math.PI*0.3 - j*0.4;
+            const dr = (sp-0.3)*40;
+            ctx.fillStyle = '#886633'; ctx.globalAlpha = 0.6*(1-sp);
+            ctx.fillRect(sx+Math.cos(da)*dr-1, cy+10+Math.sin(da)*dr-dr*0.5-1, 3, 3);
+          }
+        }
+      }
+      break;
+    }
+    case 'magnus_exorcismus': {
+      // RO-style: Giant rotating holy cross AoE with pulsing damage zones
+      const pulse = Math.sin(t*4)*0.15;
+      // Huge glow field
+      glowCircle(ctx, cx, cy, 90, '#ffdd44', 0.25 + pulse);
+      // Rotating double cross (main + diagonal)
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(t*0.8);
+      // Main cross - thick with glow
+      ctx.fillStyle = '#ffee88'; ctx.globalAlpha = 0.7;
+      ctx.fillRect(-6, -80, 12, 160); ctx.fillRect(-80, -6, 160, 12);
+      ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.4;
+      ctx.fillRect(-2, -80, 4, 160); ctx.fillRect(-80, -2, 160, 4);
+      // Diagonal cross
+      ctx.rotate(Math.PI/4);
+      ctx.fillStyle = '#ffdd44'; ctx.globalAlpha = 0.4;
+      ctx.fillRect(-4, -70, 8, 140); ctx.fillRect(-70, -4, 140, 8);
+      ctx.restore();
+      // Orbiting holy particles (16)
+      for (let i = 0; i < 16; i++) {
+        const a = (i/16)*Math.PI*2 + t*1.5;
+        const r = 65 + Math.sin(t*3+i)*10;
+        glowCircle(ctx, cx+Math.cos(a)*r, cy+Math.sin(a)*r, 8, '#ffee88', 0.4+Math.sin(t*5+i)*0.2);
+      }
+      // Periodic holy flash
+      if (Math.sin(t*5) > 0.85) screenFlash(ctx, W, H, '#ffee88', 0.1);
+      break;
+    }
+    case 'occult_impaction': {
+      // RO-style: Massive spirit fist impact with shockwave
+      const p = Math.min(t*3, 1);
+      if (t < 0.06) screenFlash(ctx, W, H, '#ffaa22', 0.35);
+      // Shockwave rings
+      for (let i = 0; i < 3; i++) {
+        const rr = (10 + p*50) + i*15;
+        ctx.strokeStyle = '#ffcc44'; ctx.lineWidth = (4-i)*(1-p*0.5);
+        ctx.globalAlpha = Math.max(0, 0.7 - p*0.5 - i*0.15);
+        ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI*2); ctx.stroke();
+      }
+      // Impact radial lines (12)
+      for (let i = 0; i < 12; i++) {
+        const a = (i/12)*Math.PI*2 + i*0.1;
+        glowLine(ctx, cx+Math.cos(a)*15, cy+Math.sin(a)*15, cx+Math.cos(a)*(15+p*50), cy+Math.sin(a)*(15+p*50), '#ffaa22', 2, Math.max(0, 0.7-p*0.5));
+      }
+      // Central impact glow
+      glowCircle(ctx, cx, cy, 30*(1-p*0.5), '#ffcc44', Math.max(0, 0.6-p*0.4));
+      break;
+    }
+    case 'investigate': {
+      // RO-style: Focused spirit palm thrust with penetrating energy beam
+      const p = Math.min(t*3, 1);
+      if (p > 0.2 && p < 0.4) screenFlash(ctx, W, H, '#ffaa44', 0.15);
+      // Energy gathering (before strike)
+      if (p < 0.4) {
+        const gp = p/0.4;
+        for (let i = 0; i < 8; i++) {
+          const a = (i/8)*Math.PI*2 + t*4;
+          const r = 40*(1-gp);
+          ctx.fillStyle = '#ffaa44'; ctx.globalAlpha = gp*0.6;
+          ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r, cy+Math.sin(a)*r, 3, 0, Math.PI*2); ctx.fill();
+        }
+      }
+      // Thrust beam
+      if (p > 0.3) {
+        const bp = (p-0.3)*1.5;
+        const bx = cx + bp*60;
+        // Beam with glow
+        glowLine(ctx, cx-10, cy, bx, cy, '#ff8844', 6, Math.max(0, 1-bp*0.5));
+        // Impact burst
+        glowCircle(ctx, bx, cy, 25*bp, '#ffcc88', Math.max(0, 0.6-bp*0.3));
+      }
+      // Spirit palm
+      glowCircle(ctx, cx+p*50, cy, 12, '#ffaa44', Math.max(0, 0.7-p*0.3));
+      break;
+    }
+    case 'zen': {
+      // RO-style: 5 spirit orbs gathering and orbiting with meditation aura
+      // Meditation energy column
+      const grd = ctx.createLinearGradient(cx, cy+50, cx, cy-60);
+      grd.addColorStop(0, 'rgba(136,170,255,0)');
+      grd.addColorStop(0.3, 'rgba(136,170,255,0.15)');
+      grd.addColorStop(0.7, 'rgba(136,170,255,0.1)');
+      grd.addColorStop(1, 'rgba(136,170,255,0)');
+      ctx.fillStyle = grd; ctx.globalAlpha = 0.5 + Math.sin(t*2)*0.2;
+      ctx.fillRect(cx-15, cy-60, 30, 110);
+      // 5 large orbiting spirit orbs
+      for (let i = 0; i < 5; i++) {
+        const a = (i/5)*Math.PI*2 + t*2;
+        const orbR = 40 + Math.sin(t*1.5+i)*8;
+        const ox = cx + Math.cos(a)*orbR;
+        const oy = cy + Math.sin(a)*orbR*0.6 - 5;
+        // Orb with bright glow
+        glowCircle(ctx, ox, oy, 14, '#88aaff', 0.6 + Math.sin(t*4+i)*0.2);
+        ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.7;
+        ctx.beginPath(); ctx.arc(ox, oy, 5, 0, Math.PI*2); ctx.fill();
+        // Orb trail
+        for (let j = 1; j <= 4; j++) {
+          const ta = a - j*0.15;
+          ctx.fillStyle = '#88aaff'; ctx.globalAlpha = 0.2/j;
+          ctx.beginPath(); ctx.arc(cx+Math.cos(ta)*orbR, cy+Math.sin(ta)*orbR*0.6-5, 4, 0, Math.PI*2); ctx.fill();
+        }
+      }
+      break;
+    }
+    case 'double_strafe': {
+      // RO-style: Two glowing arrows with bright trails
+      for (let i = 0; i < 2; i++) {
+        const delay = i * 0.18;
+        const bt = Math.max(0, t - delay);
+        const px = -60 + bt * 280;
+        const py = cy - 25 + i*18;
+        if (px > W+30 || bt <= 0) continue;
+        // Arrow glow trail
+        for (let j = 1; j <= 10; j++) {
+          ctx.fillStyle = j < 3 ? '#ccff88' : '#88ff44';
+          ctx.globalAlpha = Math.max(0, 0.6 - j*0.05);
+          ctx.beginPath(); ctx.arc(px - j*8, py + Math.sin(t*8+j)*1.5, 4 - j*0.3, 0, Math.PI*2); ctx.fill();
+        }
+        // Arrow body
+        glowCircle(ctx, px, py, 10, '#88ff44', 0.5);
+        ctx.fillStyle = '#ccff88'; ctx.globalAlpha = 0.9;
+        ctx.beginPath(); ctx.moveTo(px+12, py); ctx.lineTo(px-5, py-5); ctx.lineTo(px-3, py);
+        ctx.lineTo(px-5, py+5); ctx.closePath(); ctx.fill();
+        // Arrow shaft
+        ctx.strokeStyle = '#88cc33'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(px-5, py); ctx.lineTo(px-25, py); ctx.stroke();
+        // Fletching
+        ctx.strokeStyle = '#aaddaa'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(px-22, py-4); ctx.lineTo(px-25, py); ctx.lineTo(px-22, py+4); ctx.stroke();
+      }
+      break;
+    }
+    case 'arrow_shower': {
+      // RO-style: Dense rain of arrows from sky covering large area
+      for (let i = 0; i < 20; i++) {
+        const ax = cx - 60 + (i%7)*18 + Math.sin(i*2)*8;
+        const ay = ((t*100 + i*16) % 120);
+        const py = cy - 60 + ay;
+        const fade = Math.max(0, 0.8 - ay/120);
+        // Arrow body
+        ctx.strokeStyle = '#aacc44'; ctx.lineWidth = 2;
+        ctx.globalAlpha = fade;
+        ctx.beginPath(); ctx.moveTo(ax, py); ctx.lineTo(ax+3, py-16); ctx.stroke();
+        // Arrow head
+        ctx.fillStyle = '#ccee66'; ctx.globalAlpha = fade;
+        ctx.beginPath(); ctx.moveTo(ax-3, py+2); ctx.lineTo(ax, py+8); ctx.lineTo(ax+3, py+2); ctx.closePath(); ctx.fill();
+        // Impact dust on ground
+        if (ay > 100) {
+          const dp = (ay-100)/20;
+          glowCircle(ctx, ax, cy+35, 10*dp, '#aacc44', 0.3*(1-dp));
+        }
+      }
+      break;
+    }
+    case 'ankle_snare': {
+      // RO-style: Mechanical trap with snapping jaws and energy field
+      // Ground mark
+      ctx.strokeStyle = '#ffaa44'; ctx.lineWidth = 2; ctx.globalAlpha = 0.5;
+      ctx.beginPath(); ctx.ellipse(cx, cy+15, 30, 18, 0, 0, Math.PI*2); ctx.stroke();
+      // Trap frame
+      ctx.strokeStyle = '#ddaa44'; ctx.lineWidth = 3; ctx.globalAlpha = 0.8;
+      ctx.strokeRect(cx-22, cy, 44, 28);
+      // Cross wires
+      ctx.strokeStyle = '#ffcc66'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx-22, cy); ctx.lineTo(cx+22, cy+28); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx+22, cy); ctx.lineTo(cx-22, cy+28); ctx.stroke();
+      // Snapping jaws animation
+      const snap = Math.sin(t*8) * 8;
+      ctx.strokeStyle = '#ff8844'; ctx.lineWidth = 3; ctx.globalAlpha = 0.8;
+      ctx.beginPath(); ctx.moveTo(cx-18, cy+14+snap); ctx.lineTo(cx-8, cy+7); ctx.lineTo(cx, cy+14+snap);
+      ctx.lineTo(cx+8, cy+7); ctx.lineTo(cx+18, cy+14+snap); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx-18, cy+14-snap); ctx.lineTo(cx-8, cy+21); ctx.lineTo(cx, cy+14-snap);
+      ctx.lineTo(cx+8, cy+21); ctx.lineTo(cx+18, cy+14-snap); ctx.stroke();
+      // Energy field glow
+      glowCircle(ctx, cx, cy+14, 25, '#ffaa44', 0.15 + Math.sin(t*5)*0.08);
+      break;
+    }
+    case 'blitz_beat': {
+      // RO-style: Large falcon dive with dramatic wind trails + impact explosion
+      const p = Math.min(t*2, 1);
+      const fy = cy - 90 + p*80;
+      // Wind speed lines
+      if (p < 0.8) {
+        for (let i = 0; i < 8; i++) {
+          ctx.strokeStyle = '#ffdd88'; ctx.lineWidth = 1.5;
+          ctx.globalAlpha = 0.3*(1-p);
+          ctx.beginPath(); ctx.moveTo(cx-20+i*5, fy+15+i*3); ctx.lineTo(cx-20+i*5, fy+35+i*3); ctx.stroke();
+        }
+      }
+      // Large falcon
+      ctx.fillStyle = '#ffcc44'; ctx.globalAlpha = 0.9;
+      ctx.save(); ctx.translate(cx, fy); ctx.scale(1.8, 1.8);
+      ctx.beginPath(); ctx.moveTo(0, -2); ctx.lineTo(-10, 6); ctx.lineTo(-4, 4);
+      ctx.lineTo(0, 8); ctx.lineTo(4, 4); ctx.lineTo(10, 6); ctx.closePath(); ctx.fill();
+      // Wing detail
+      ctx.fillStyle = '#eebb33'; ctx.beginPath(); ctx.moveTo(-4, 3); ctx.lineTo(-12, 5); ctx.lineTo(-6, 6); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(4, 3); ctx.lineTo(12, 5); ctx.lineTo(6, 6); ctx.fill();
+      ctx.restore();
+      // Falcon glow
+      glowCircle(ctx, cx, fy, 20, '#ffcc44', 0.3);
+      // Impact explosion
+      if (p > 0.7) {
+        const ip = (p-0.7)*3.3;
+        if (ip < 0.2) screenFlash(ctx, W, H, '#ffdd88', 0.2);
+        glowCircle(ctx, cx, cy-10, 40*ip, '#ffcc44', Math.max(0, 0.6-ip*0.4));
+        for (let i = 0; i < 8; i++) {
+          const a = (i/8)*Math.PI*2; const r = ip*40;
+          ctx.fillStyle = '#ffdd88'; ctx.globalAlpha = Math.max(0, 0.6-ip*0.5);
+          ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r, cy-10+Math.sin(a)*r, 3, 0, Math.PI*2); ctx.fill();
+        }
+      }
+      break;
+    }
+    case 'melody_strike': {
+      // RO-style: Large glowing music note projectile with musical trail
+      const px = -50 + t * 240;
+      if (px > W+30) break;
+      // Trail of smaller notes
+      for (let i = 1; i <= 6; i++) {
+        const tx = px - i*18, ty = cy-15 + Math.sin(t*6+i*1.5)*8;
+        ctx.fillStyle = '#ffaadd'; ctx.globalAlpha = 0.5/i;
+        ctx.font = `${16-i*1.5}px sans-serif`; ctx.textAlign = 'center';
+        ctx.fillText(i%2 ? '♪' : '♫', tx, ty);
+      }
+      // Main large note with glow
+      glowCircle(ctx, px, cy-15, 18, '#ff88cc', 0.4);
+      ctx.fillStyle = '#ff88cc'; ctx.globalAlpha = 0.9;
+      ctx.font = 'bold 24px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('♫', px, cy-8);
+      break;
+    }
+    case 'frost_joker': {
+      // RO-style: Freezing AoE with ice crystals and frost spreading
+      // Expanding frost rings
+      for (let i = 0; i < 5; i++) {
+        const r = ((t*40 + i*16) % 80);
+        ctx.strokeStyle = '#88ddff'; ctx.lineWidth = 3 - r/30;
+        ctx.globalAlpha = Math.max(0, 0.5 - r/80);
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+      }
+      // 12 rotating ice crystals
+      for (let i = 0; i < 12; i++) {
+        const a = (i/12)*Math.PI*2 + t*1.5;
+        const r = 25 + Math.sin(t*3+i)*15;
+        const x = cx+Math.cos(a)*r, y = cy+Math.sin(a)*r;
+        ctx.fillStyle = i%3===0 ? '#ffffff' : '#aaeeff';
+        ctx.globalAlpha = 0.6 + Math.sin(t*5+i)*0.2;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(t*3+i);
+        // Diamond crystal
+        ctx.beginPath(); ctx.moveTo(0,-7); ctx.lineTo(4,0); ctx.lineTo(0,7); ctx.lineTo(-4,0); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+      // Frost flash
+      if (Math.sin(t*6) > 0.85) screenFlash(ctx, W, H, '#aaeeff', 0.1);
+      break;
+    }
+    case 'drum_battle': {
+      // RO-style: Powerful buff aura waves with ATK/DEF up indicators
+      // Expanding buff waves
+      for (let i = 0; i < 5; i++) {
+        const r = ((t*45 + i*14) % 70);
+        const grd = ctx.createRadialGradient(cx, cy, Math.max(0,r-8), cx, cy, r+8);
+        grd.addColorStop(0, 'rgba(255,170,68,0)');
+        grd.addColorStop(0.5, 'rgba(255,170,68,0.35)');
+        grd.addColorStop(1, 'rgba(255,170,68,0)');
+        ctx.fillStyle = grd; ctx.globalAlpha = Math.max(0, 0.7 - r/70);
+        ctx.beginPath(); ctx.arc(cx, cy, r+8, 0, Math.PI*2); ctx.fill();
+      }
+      // Large buff up arrows
+      for (let i = 0; i < 5; i++) {
+        const ax = cx - 25 + i*12;
+        const ay = cy - 45 + Math.sin(t*4+i*0.8)*5;
+        const sz = 8;
+        ctx.fillStyle = '#ffcc44'; ctx.globalAlpha = 0.7 + Math.sin(t*5+i)*0.2;
+        ctx.beginPath(); ctx.moveTo(ax, ay-sz); ctx.lineTo(ax-sz, ay+2); ctx.lineTo(ax+sz, ay+2); ctx.closePath(); ctx.fill();
+      }
+      break;
+    }
+    case 'lokis_veil': {
+      // RO-style: Dark dome with swirling shadow energy
+      // Dark dome fill
+      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 75);
+      grd.addColorStop(0, 'rgba(30,10,60,0.15)');
+      grd.addColorStop(0.5, 'rgba(60,30,120,0.25)');
+      grd.addColorStop(0.8, 'rgba(80,50,150,0.15)');
+      grd.addColorStop(1, 'rgba(50,20,100,0)');
+      ctx.fillStyle = grd; ctx.globalAlpha = 0.5 + Math.sin(t*2)*0.1;
+      ctx.beginPath(); ctx.arc(cx, cy, 75, 0, Math.PI*2); ctx.fill();
+      // Dome edge
+      ctx.strokeStyle = '#8866cc'; ctx.lineWidth = 2; ctx.globalAlpha = 0.5 + Math.sin(t*3)*0.15;
+      ctx.beginPath(); ctx.ellipse(cx, cy-5, 70, 55, 0, Math.PI, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(cx, cy+15, 70, 25, 0, 0, Math.PI); ctx.stroke();
+      // Swirling dark particles (16)
+      for (let i = 0; i < 16; i++) {
+        const a = (i/16)*Math.PI*2 + t*1.5 + Math.sin(i)*0.5;
+        const r = 40 + Math.sin(t*2+i)*20;
+        ctx.fillStyle = i%3===0 ? '#aa88dd' : '#6644aa';
+        ctx.globalAlpha = 0.4 + Math.sin(t*4+i)*0.15;
+        ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r, cy+Math.sin(a)*r*0.5, 4+Math.sin(t*5+i)*2, 0, Math.PI*2); ctx.fill();
+      }
+      break;
+    }
+    case 'slinging_arrow': {
+      // RO-style: Pink glowing arrow with sparkle trail
+      const px = -50 + t * 250;
+      if (px > W+30) break;
+      // Sparkle trail
+      for (let j = 1; j <= 8; j++) {
+        const tx = px - j*12, ty = cy-18 + Math.sin(t*8+j*2)*4;
+        ctx.fillStyle = j%2 ? '#ff88aa' : '#ffaacc';
+        ctx.globalAlpha = 0.5/j;
+        ctx.beginPath(); ctx.arc(tx, ty, 4-j*0.3, 0, Math.PI*2); ctx.fill();
+      }
+      // Arrow with glow
+      glowCircle(ctx, px, cy-18, 12, '#ff6688', 0.4);
+      ctx.fillStyle = '#ff88aa'; ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.moveTo(px+14, cy-18); ctx.lineTo(px-4, cy-24); ctx.lineTo(px-2, cy-18);
+      ctx.lineTo(px-4, cy-12); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#cc4466'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(px-4, cy-18); ctx.lineTo(px-22, cy-18); ctx.stroke();
+      break;
+    }
+    case 'scream': {
+      // RO-style: Powerful sonic shockwaves with screen shake feel
+      // Multiple thick shockwave rings
+      for (let i = 0; i < 6; i++) {
+        const r = ((t*60 + i*12) % 80);
+        ctx.strokeStyle = i%2 ? '#ff44aa' : '#ff66cc';
+        ctx.lineWidth = (5 - r/20);
+        ctx.globalAlpha = Math.max(0, 0.7 - r/80);
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+      }
+      // Large exclamation marks radiating
+      ctx.fillStyle = '#ff66bb'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
+      for (let i = 0; i < 6; i++) {
+        const a = (i/6)*Math.PI*2 + t*0.5;
+        const r = 45 + Math.sin(t*4+i)*10;
+        ctx.globalAlpha = 0.6 + Math.sin(t*6+i)*0.2;
+        ctx.fillText('!', cx+Math.cos(a)*r, cy+Math.sin(a)*r);
+      }
+      // Central sonic flash
+      if (Math.sin(t*8) > 0.8) screenFlash(ctx, W, H, '#ff44aa', 0.08);
+      break;
+    }
+    case 'humming': {
+      // RO-style: Musical buff aura with large floating notes
+      // 10 floating music notes
+      for (let i = 0; i < 10; i++) {
+        const a = (i/10)*Math.PI*2 + t*1.2;
+        const r = 35 + Math.sin(t*2+i)*12;
+        const nx = cx + Math.cos(a)*r;
+        const ny = cy + Math.sin(a)*r*0.6 - 8 - ((t*20+i*8)%20);
+        ctx.fillStyle = i%3===0 ? '#44ff88' : i%3===1 ? '#88ffaa' : '#aaffcc';
+        ctx.globalAlpha = 0.6 + Math.sin(t*4+i)*0.2;
+        ctx.font = `${14+Math.sin(t*3+i)*3}px sans-serif`;
+        ctx.fillText(i%2 ? '♪' : '♫', nx, ny);
+      }
+      // Green aura glow
+      glowCircle(ctx, cx, cy, 50, '#88ffaa', 0.15 + Math.sin(t*3)*0.05);
+      break;
+    }
+    case 'charm': {
+      // RO-style: Many hearts floating up with sparkles
+      for (let i = 0; i < 12; i++) {
+        const yOff = ((t*45 + i*10) % 90);
+        const xOff = Math.sin(t*2 + i*1.3) * 35;
+        const sz = 5 + Math.sin(t*3+i)*2;
+        ctx.fillStyle = i%3===0 ? '#ff4477' : i%3===1 ? '#ff6699' : '#ff88bb';
+        ctx.globalAlpha = Math.max(0, 0.8 - yOff/90);
+        const hx = cx + xOff, hy = cy - yOff + 20;
+        // Heart shape
+        ctx.beginPath(); ctx.arc(hx-sz*0.5, hy-sz*0.2, sz*0.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(hx+sz*0.5, hy-sz*0.2, sz*0.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(hx-sz, hy); ctx.lineTo(hx, hy+sz*1.2); ctx.lineTo(hx+sz, hy); ctx.fill();
+      }
+      // Pink sparkles
+      for (let i = 0; i < 6; i++) {
+        const a = (i/6)*Math.PI*2 + t*3;
+        const r = 20 + Math.sin(t*4+i)*10;
+        glowCircle(ctx, cx+Math.cos(a)*r, cy+Math.sin(a)*r, 6, '#ff6699', 0.3);
+      }
+      break;
+    }
+    case 'acid_terror': {
+      // RO-style: Acid bottle shattering with splashing green liquid
+      const p = Math.min(t*2.5, 1);
+      if (p > 0.3 && p < 0.5) screenFlash(ctx, W, H, '#44ff44', 0.12);
+      // Bottle flying in arc (first phase)
+      if (p < 0.4) {
+        const bp = p/0.4;
+        const bx = cx-50+bp*50, by = cy-Math.sin(bp*Math.PI)*60;
+        ctx.fillStyle = '#22aa22'; ctx.globalAlpha = 0.8;
+        ctx.fillRect(bx-4, by-7, 8, 14);
+        ctx.fillStyle = '#44cc44'; ctx.fillRect(bx-3, by-10, 6, 5);
+      }
+      // Acid splash (after impact)
+      if (p > 0.3) {
+        const sp = (p-0.3)*1.5;
+        // Splash particles
+        for (let i = 0; i < 16; i++) {
+          const a = (i/16)*Math.PI*2 + i*0.3;
+          const r = sp * (35 + i*3);
+          const drip = sp*sp * 20;
+          ctx.fillStyle = i%3===0 ? '#44ff44' : i%3===1 ? '#22cc22' : '#88ff88';
+          ctx.globalAlpha = Math.max(0, 0.8 - sp*0.5);
+          ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r, cy+Math.sin(a)*r+drip, 5-sp*2, 0, Math.PI*2); ctx.fill();
+        }
+        // Sizzle/dissolve effect at center
+        glowCircle(ctx, cx, cy, 20, '#44ff44', Math.max(0, 0.5-sp*0.3) * Math.abs(Math.sin(t*12)));
+      }
+      break;
+    }
+    case 'demonstration': {
+      // RO-style: Bottle bomb with huge fire explosion
+      const p = Math.min(t*1.8, 1);
+      if (p < 0.45) {
+        // Bomb arc
+        const bp = p/0.45;
+        const bx = cx-50+bp*50, by = cy-Math.sin(bp*Math.PI)*70;
+        ctx.fillStyle = '#444'; ctx.globalAlpha = 0.9;
+        ctx.beginPath(); ctx.arc(bx, by, 7, 0, Math.PI*2); ctx.fill();
+        // Lit fuse
+        ctx.strokeStyle = '#ff6600'; ctx.lineWidth = 2; ctx.globalAlpha = 0.7 + Math.sin(t*15)*0.3;
+        ctx.beginPath(); ctx.moveTo(bx+4, by-5); ctx.lineTo(bx+8, by-12); ctx.stroke();
+        glowCircle(ctx, bx+8, by-12, 5, '#ffaa00', 0.6);
+      } else {
+        // MASSIVE explosion
+        const ep = (p-0.45)/0.55;
+        if (ep < 0.15) screenFlash(ctx, W, H, '#ff6600', 0.5*(1-ep/0.15));
+        // Multi-layered explosion
+        const r = ep * 80;
+        glowCircle(ctx, cx, cy, r+20, '#ff4400', Math.max(0, 0.6-ep*0.4));
+        glowCircle(ctx, cx, cy, r*0.7, '#ffaa00', Math.max(0, 0.5-ep*0.3));
+        glowCircle(ctx, cx, cy, r*0.3, '#ffffff', Math.max(0, 0.4-ep*0.3));
+        // Debris flying out
+        for (let i = 0; i < 14; i++) {
+          const a = (i/14)*Math.PI*2 + i*0.2;
+          const dr = ep * (50+i*4);
+          ctx.fillStyle = i%3===0 ? '#ff4400' : i%3===1 ? '#ffaa00' : '#883300';
+          ctx.globalAlpha = Math.max(0, 0.7-ep*0.5);
+          ctx.beginPath(); ctx.arc(cx+Math.cos(a)*dr, cy+Math.sin(a)*dr+ep*ep*20, 3, 0, Math.PI*2); ctx.fill();
+        }
+      }
+      break;
+    }
+    case 'potion_pitcher': {
+      // RO-style: Potion bottle arc with healing splash on impact
+      const p = Math.min(t*2, 1);
+      const bx = cx - 50 + p*70;
+      const by = cy - Math.sin(p*Math.PI)*70;
+      if (p < 0.85) {
+        // Spinning bottle
+        ctx.save(); ctx.translate(bx, by); ctx.rotate(t*10);
+        ctx.fillStyle = '#ff4444'; ctx.globalAlpha = 0.9;
+        ctx.fillRect(-5, -8, 10, 16);
+        ctx.fillStyle = '#cc2222'; ctx.fillRect(-3, -12, 6, 6);
+        ctx.fillStyle = '#ffaaaa'; ctx.globalAlpha = 0.5;
+        ctx.fillRect(-2, -5, 3, 10);
+        ctx.restore();
+        // Spin trail
+        glowCircle(ctx, bx, by, 10, '#ff4444', 0.2);
+      }
+      // Splash on impact
+      if (p > 0.7) {
+        const sp = (p-0.7)*3.3;
+        glowCircle(ctx, cx+20, cy, 30*sp, '#ff6666', Math.max(0, 0.5-sp*0.3));
+        for (let i = 0; i < 8; i++) {
+          const a = (i/8)*Math.PI*2;
+          ctx.fillStyle = i%2 ? '#ff8888' : '#ffaaaa';
+          ctx.globalAlpha = Math.max(0, 0.7-sp*0.5);
+          ctx.beginPath(); ctx.arc(cx+20+Math.cos(a)*sp*25, cy+Math.sin(a)*sp*25, 3, 0, Math.PI*2); ctx.fill();
+        }
+        // Heal number pop
+        ctx.fillStyle = '#44ff44'; ctx.globalAlpha = Math.max(0, 0.8-sp*0.5);
+        ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('+HP', cx+20, cy-20-sp*15);
+      }
+      break;
+    }
+    case 'bio_cannibalize': {
+      // RO-style: Large carnivorous plant erupting from ground
+      const p = Math.min(t*1.8, 1);
+      // Ground crack
+      if (p > 0.1) {
+        ctx.strokeStyle = '#446622'; ctx.lineWidth = 2; ctx.globalAlpha = Math.min(p*2, 0.6);
+        ctx.beginPath(); ctx.moveTo(cx-25, cy+20); ctx.lineTo(cx+25, cy+20); ctx.stroke();
+        for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(cx-12+i*12, cy+20); ctx.lineTo(cx-10+i*12, cy+28); ctx.stroke(); }
+      }
+      // Thick stem with S-curve
+      const stemH = p * 60;
+      ctx.strokeStyle = '#338833'; ctx.lineWidth = 5; ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.moveTo(cx, cy+20);
+      ctx.quadraticCurveTo(cx+10*p, cy+20-stemH*0.4, cx-5*p, cy+20-stemH*0.7);
+      ctx.quadraticCurveTo(cx-10*p, cy+20-stemH*0.9, cx, cy+20-stemH);
+      ctx.stroke();
+      // Large leaves
+      if (p > 0.3) {
+        const lp = (p-0.3)*1.5;
+        ctx.fillStyle = '#44cc44'; ctx.globalAlpha = 0.8;
+        ctx.beginPath(); ctx.ellipse(cx-12, cy-5, 14*lp, 6*lp, -0.6, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx+10, cy-15, 12*lp, 5*lp, 0.5, 0, Math.PI*2); ctx.fill();
+        // Leaf veins
+        ctx.strokeStyle = '#338833'; ctx.lineWidth = 1; ctx.globalAlpha = 0.4;
+        ctx.beginPath(); ctx.moveTo(cx-20, cy-5); ctx.lineTo(cx-4, cy-5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx+3, cy-15); ctx.lineTo(cx+18, cy-15); ctx.stroke();
+      }
+      // Flower head (carnivorous)
+      if (p > 0.5) {
+        const fp = (p-0.5)*2;
+        const fy = cy + 20 - stemH;
+        // Petals
+        ctx.fillStyle = '#ff3333'; ctx.globalAlpha = 0.8;
+        for (let i = 0; i < 6; i++) {
+          const a = (i/6)*Math.PI*2 + Math.sin(t*3)*0.1;
+          ctx.beginPath(); ctx.ellipse(cx+Math.cos(a)*8*fp, fy+Math.sin(a)*8*fp, 8*fp, 5*fp, a, 0, Math.PI*2); ctx.fill();
+        }
+        // Center
+        ctx.fillStyle = '#ffaa00'; ctx.beginPath(); ctx.arc(cx, fy, 5*fp, 0, Math.PI*2); ctx.fill();
+        // Pollen particles
+        for (let i = 0; i < 4; i++) {
+          const pa = (i/4)*Math.PI*2 + t*2;
+          ctx.fillStyle = '#ffdd44'; ctx.globalAlpha = 0.5;
+          ctx.beginPath(); ctx.arc(cx+Math.cos(pa)*15*fp, fy+Math.sin(pa)*12*fp, 2, 0, Math.PI*2); ctx.fill();
+        }
+      }
+      break;
+    }
+    default: {
+      // Dramatic generic: colored energy burst with particles
+      const p = Math.min(t*2, 1);
+      if (t < 0.05) screenFlash(ctx, W, H, color, 0.2);
+      glowCircle(ctx, cx, cy, 50*p, color, Math.max(0, 0.5-p*0.3));
+      ctx.strokeStyle = color; ctx.lineWidth = 3*(1-p);
+      ctx.globalAlpha = Math.max(0, 0.8-p*0.5);
+      ctx.beginPath(); ctx.arc(cx, cy, p*60, 0, Math.PI*2); ctx.stroke();
+      for (let i = 0; i < 12; i++) {
+        const a = (i/12)*Math.PI*2 + t*3;
+        const r = p * 55;
+        ctx.fillStyle = i%2 ? '#ffffff' : color;
+        ctx.globalAlpha = Math.max(0, 0.7 - p*0.5);
+        ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r, cy+Math.sin(a)*r, 3, 0, Math.PI*2); ctx.fill();
+      }
+      break;
+    }
+  }
+  ctx.restore();
+}
+
+// Init
+loadAll();
+</script>
+</body>
+</html>

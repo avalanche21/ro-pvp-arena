@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RO PvP Map Designer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; color: #eee; font-family: 'Segoe UI', Arial, sans-serif; display: flex; height: 100vh; }
+
+  /* Left panel - tile picker */
+  .sidebar { width: 280px; background: #16213e; border-right: 2px solid #0f3460; overflow-y: auto; flex-shrink: 0; }
+  .sidebar h2 { font-size: 14px; padding: 12px 12px 6px; color: #e94560; text-transform: uppercase; letter-spacing: 1px; }
+  .zone-section { padding: 4px 10px 10px; border-bottom: 1px solid #0f3460; }
+  .zone-section h3 { font-size: 13px; color: #aaa; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .zone-section h3 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .tile-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tile-thumb { width: 56px; height: 56px; border: 2px solid #0f3460; border-radius: 4px; cursor: pointer;
+    background-size: cover; background-position: center; position: relative; }
+  .tile-thumb:hover { border-color: #4a8aff; }
+  .tile-thumb.selected { border-color: #e94560; box-shadow: 0 0 8px rgba(233,69,96,0.5); }
+  .tile-thumb .label { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7);
+    font-size: 8px; text-align: center; padding: 1px; overflow: hidden; white-space: nowrap; }
+  .color-tile { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 6px; border: 2px solid #0f3460; border-radius: 4px; }
+  .color-tile:hover { border-color: #4a8aff; }
+  .color-tile.selected { border-color: #e94560; }
+  .color-swatch { width: 40px; height: 40px; border-radius: 3px; }
+  .color-tile span { font-size: 11px; }
+
+  /* Main area */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .toolbar { background: #16213e; padding: 10px 16px; display: flex; gap: 12px; align-items: center;
+    flex-wrap: wrap; border-bottom: 2px solid #0f3460; }
+  .toolbar label { font-size: 12px; color: #aaa; display: flex; align-items: center; gap: 4px; }
+  .toolbar select, .toolbar input[type=range] { background: #1a1a2e; color: #eee; border: 1px solid #0f3460;
+    padding: 3px 6px; border-radius: 4px; }
+  .toolbar button { padding: 7px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; }
+  .btn-primary { background: #e94560; color: #fff; }
+  .btn-primary:hover { background: #c73650; }
+  .btn-secondary { background: #0f3460; color: #fff; }
+  .btn-secondary:hover { background: #1a5090; }
+  .btn-save { background: #22c55e; color: #fff; }
+  .btn-save:hover { background: #18a34a; }
+  .status { font-size: 12px; color: #888; margin-left: auto; }
+
+  .canvas-area { flex: 1; overflow: auto; padding: 16px; display: flex; justify-content: center; align-items: flex-start; }
+  canvas { border: 2px solid #0f3460; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h2>Tile Textures</h2>
+
+  <div class="zone-section" id="zone-stone">
+    <h3><span class="dot" style="background:#b8a894"></span> Prontera / Stone Zone</h3>
+    <div class="tile-grid" id="stone-tiles"></div>
+  </div>
+
+  <div class="zone-section" id="zone-path">
+    <h3><span class="dot" style="background:#8a7a66"></span> Path / Road</h3>
+    <div class="tile-grid" id="path-tiles"></div>
+  </div>
+
+  <div class="zone-section" id="zone-grass">
+    <h3><span class="dot" style="background:#5a8c4a"></span> Grass Border</h3>
+    <div class="tile-grid" id="grass-tiles"></div>
+  </div>
+
+  <div class="zone-section" id="zone-sand">
+    <h3><span class="dot" style="background:#d4b882"></span> Sand / Beach</h3>
+    <div class="tile-grid" id="sand-tiles"></div>
+  </div>
+
+  <div class="zone-section" id="zone-water">
+    <h3><span class="dot" style="background:#1a5c9e"></span> Water</h3>
+    <div class="tile-grid" id="water-tiles"></div>
+  </div>
+
+  <div class="zone-section" id="zone-shallow">
+    <h3><span class="dot" style="background:#2d8ab8"></span> Shallow Water</h3>
+    <div class="tile-grid" id="shallow-tiles"></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="toolbar">
+    <label>Scale:
+      <select id="previewScale">
+        <option value="0.25">25%</option>
+        <option value="0.5" selected>50%</option>
+        <option value="0.75">75%</option>
+        <option value="1">100%</option>
+      </select>
+    </label>
+    <label>Edge Softness: <input type="range" id="edgeSoftness" min="0" max="5" value="3"> <span id="softnessVal">3</span></label>
+    <label>Tile Scale:
+      <select id="tileScale">
+        <option value="1">1x1 (64px)</option>
+        <option value="2" selected>2x2 (128px)</option>
+        <option value="3">3x3 (192px)</option>
+      </select>
+    </label>
+    <button class="btn-primary" onclick="renderMap()">Refresh</button>
+    <button class="btn-save" onclick="saveMap()">Save to Project</button>
+    <button class="btn-secondary" onclick="exportDownload()">Download PNG</button>
+    <span class="status" id="status">Ready</span>
+  </div>
+  <div class="canvas-area">
+    <canvas id="mapCanvas"></canvas>
+  </div>
+</div>
+
+<canvas id="exportCanvas" style="display:none"></canvas>
+
+<script>
+const MAP_W = 3200, MAP_H = 2400, TILE = 64;
+const COLS = MAP_W / TILE, ROWS = Math.ceil(MAP_H / TILE);
+
+// === MAP GENERATION (mirrors shared/constants.ts exactly) ===
+function noise2d(x, y) { const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return n - Math.floor(n); }
+function smoothNoise(x, y) {
+  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
+  const sx = fx*fx*(3-2*fx), sy = fy*fy*(3-2*fy);
+  return noise2d(ix,iy)*(1-sx)*(1-sy) + noise2d(ix+1,iy)*sx*(1-sy) + noise2d(ix,iy+1)*(1-sx)*sy + noise2d(ix+1,iy+1)*sx*sy;
+}
+function fbmNoise(x, y) { return smoothNoise(x,y)*0.6 + smoothNoise(x*2.1,y*2.1)*0.4; }
+const T = { Water:0, Stone:1, Path:2, Sand:3, Grass:4, ShallowWater:5 };
+
+function generateMapLayout() {
+  const grid = [];
+  const cc = Math.floor(COLS/2), cr = Math.floor(ROWS/2);
+  for (let r = 0; r < ROWS; r++) { grid[r] = [];
+    for (let c = 0; c < COLS; c++) { grid[r][c] = T.Water;
+      if (c>=12 && c<=38 && r>=4 && r<=18) {
+        if (c===12||c===38||r===4||r===18||c===13||c===37||r===5||r===17) grid[r][c]=T.Grass;
+        else grid[r][c]=T.Stone;
+        if ((Math.abs(r-11)<=1||Math.abs(c-cc)<=1)&&c>13&&c<37&&r>5&&r<17) grid[r][c]=T.Path;
+        continue;
+      }
+      const dx=(c-cc)/23, dy=(r-cr)/17, nv=fbmNoise(c*0.15,r*0.15)*0.35;
+      if (Math.sqrt(dx*dx+dy*dy)-nv < 0.72) grid[r][c]=T.Sand;
+      if (r>=17&&r<=22&&c>=14&&c<=36) grid[r][c]=T.Sand;
+      if (r>=15&&r<=32) { const sd=(c-cc)/20,sdy=(r-23)/12,sn=fbmNoise(c*0.12+5,r*0.12+3)*0.3;
+        if (Math.sqrt(sd*sd+sdy*sdy)-sn<0.75) grid[r][c]=T.Sand; }
+      const cn=fbmNoise(c*0.2+10,r*0.2)*0.2,cd=(c-(cc+12))/6,cdy=(r-cr)/8;
+      if (Math.sqrt(cd*cd+cdy*cdy)+cn<0.8) grid[r][c]=T.Sand;
+    }
+  }
+  for (let pass=0;pass<2;pass++) { const snap=grid.map(r=>[...r]);
+    for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) { if (snap[r][c]!==T.Water) continue; let near=false;
+      for (let dr=-1;dr<=1;dr++) for (let dc=-1;dc<=1;dc++) { const nr=r+dr,nc=c+dc;
+        if (nr>=0&&nr<ROWS&&nc>=0&&nc<COLS) {
+          if (pass===0&&snap[nr][nc]>=T.Stone&&snap[nr][nc]<=T.Grass) near=true;
+          if (pass===1&&snap[nr][nc]===T.ShallowWater) near=true; }}
+      if (near) grid[r][c]=T.ShallowWater; }}
+  return grid;
+}
+
+const layout = generateMapLayout();
+
+// === Tile texture definitions per zone ===
+const ZONE_TILES = {
+  stone: {
+    textures: ['prt_city_bot01.png','prt_city_bot02.png','prt_city_bot03.png','prt_city_bot05.png',
+               'prt_bot01.png','prt_bot03.png','prt_bot04.png','prt_bot06.png',
+               'prt_j_01.png','prt_j_02.png','prt_j_03.png'],
+    colors: [
+      { color: '#b8a894', name: 'Warm stone' },
+      { color: '#9a8a76', name: 'Dark stone' },
+      { color: '#c8b8a0', name: 'Light stone' },
+      { color: '#8a7a6a', name: 'Slate' },
+    ],
+    selected: 'prt_city_bot01.png',
+  },
+  path: {
+    textures: ['prt_pr_bottom01.png','prt_city_bot04.png','prt_bot01.png'],
+    colors: [
+      { color: '#8a7a66', name: 'Dark cobble' },
+      { color: '#6a5a4a', name: 'Brick dark' },
+    ],
+    selected: 'prt_pr_bottom01.png',
+  },
+  grass: {
+    textures: ['grass_floor_1.png','grass_floor_2.png','grass_floor_3.png','grass_floor_4.png'],
+    colors: [
+      { color: '#5a8c4a', name: 'RO Green' },
+      { color: '#3cb371', name: 'Tropical' },
+      { color: '#2e8b2e', name: 'Deep green' },
+      { color: '#8aa84a', name: 'Dry grass' },
+    ],
+    selected: 'grass_floor_1.png',
+  },
+  sand: {
+    textures: ['sand_floor_1.png','sand_floor_2.png','sand_floor_3.png','sand_floor_4.png',
+               'sand_floor_5.png','sand_floor_6.png','sand_floor_7.png'],
+    colors: [
+      { color: '#d4b882', name: 'Classic sand' },
+      { color: '#f5deb3', name: 'White sand' },
+      { color: '#e8c87a', name: 'Golden' },
+      { color: '#c8a868', name: 'Dark sand' },
+    ],
+    selected: 'sand_floor_1.png',
+  },
+  water: {
+    textures: ['water000.jpg','water001.jpg','water002.jpg','water003.jpg','water004.jpg','water005.jpg'],
+    colors: [
+      { color: '#1a5c9e', name: 'Classic blue' },
+      { color: '#0077be', name: 'Tropical' },
+      { color: '#2e8b8b', name: 'Teal' },
+      { color: '#1a3a5e', name: 'Deep ocean' },
+      { color: '#0e3a6e', name: 'Dark navy' },
+    ],
+    selected: 'water000.jpg',
+  },
+  shallow: {
+    textures: ['water_floor_1.png','water_floor_2.png','water_floor_3.png'],
+    colors: [
+      { color: '#2d8ab8', name: 'Light blue' },
+      { color: '#40b4e0', name: 'Turquoise' },
+      { color: '#4aadad', name: 'Teal' },
+    ],
+    selected: 'water_floor_1.png',
+  },
+};
+
+// Image cache
+const imgCache = {};
+let loadedCount = 0, totalToLoad = 0;
+
+function loadImage(filename) {
+  return new Promise(resolve => {
+    if (imgCache[filename]) { resolve(imgCache[filename]); return; }
+    const img = new Image();
+    img.onload = () => { imgCache[filename] = img; resolve(img); };
+    img.onerror = () => resolve(null);
+    img.src = `/tiles/${filename}`;
+  });
+}
+
+// === BUILD SIDEBAR ===
+function buildSidebar() {
+  for (const [zone, cfg] of Object.entries(ZONE_TILES)) {
+    const container = document.getElementById(`${zone}-tiles`);
+    container.innerHTML = '';
+
+    // Texture tiles
+    for (const tex of cfg.textures) {
+      const div = document.createElement('div');
+      div.className = 'tile-thumb' + (cfg.selected === tex ? ' selected' : '');
+      div.style.backgroundImage = `url(/tiles/${tex})`;
+      div.dataset.zone = zone;
+      div.dataset.value = tex;
+      div.dataset.type = 'texture';
+      div.innerHTML = `<span class="label">${tex.replace(/\.(png|jpg)/, '')}</span>`;
+      div.onclick = () => selectTile(zone, tex, 'texture');
+      container.appendChild(div);
+    }
+
+    // Solid color options
+    for (const c of cfg.colors) {
+      const div = document.createElement('div');
+      div.className = 'color-tile' + (cfg.selected === c.color ? ' selected' : '');
+      div.dataset.zone = zone;
+      div.dataset.value = c.color;
+      div.dataset.type = 'color';
+      div.innerHTML = `<div class="color-swatch" style="background:${c.color}"></div><span>${c.name}</span>`;
+      div.onclick = () => selectTile(zone, c.color, 'color');
+      container.appendChild(div);
+    }
+  }
+}
+
+function selectTile(zone, value, type) {
+  ZONE_TILES[zone].selected = value;
+  ZONE_TILES[zone].selectedType = type;
+  // Update UI
+  const container = document.getElementById(`${zone}-tiles`);
+  container.querySelectorAll('.tile-thumb, .color-tile').forEach(el => {
+    el.classList.toggle('selected', el.dataset.value === value);
+  });
+  renderMap();
+}
+
+// === RENDER MAP ===
+async function renderToCanvas(canvas, scale) {
+  const w = MAP_W * scale, h = MAP_H * scale;
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const softness = parseInt(document.getElementById('edgeSoftness').value);
+  const tileScale = parseInt(document.getElementById('tileScale').value);
+  const tileW = TILE * scale, tileH = TILE * scale;
+  const blockW = tileW * tileScale, blockH = tileH * tileScale;
+
+  // Preload selected textures
+  const texImgs = {};
+  for (const [zone, cfg] of Object.entries(ZONE_TILES)) {
+    if (!cfg.selected.startsWith('#')) {
+      texImgs[zone] = await loadImage(cfg.selected);
+    }
+  }
+
+  // Pass 1: Water base (gradient background)
+  const wc = ZONE_TILES.water.selected;
+  if (wc.startsWith('#')) {
+    ctx.fillStyle = wc; ctx.fillRect(0,0,w,h);
+  } else {
+    // Fill with water texture
+    const waterImg = texImgs.water;
+    if (waterImg) {
+      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+        ctx.drawImage(waterImg, c*tileW, r*tileH, tileW, tileH);
+      }
+    }
+  }
+
+  // Pass 2: Per-tile rendering
+  const placed = new Set();
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const t = layout[r][c];
+      const x = c * tileW, y = r * tileH;
+      let zone = null;
+
+      if (t === T.Water) {
+        zone = 'water';
+      } else if (t === T.ShallowWater) {
+        zone = 'shallow';
+      } else if (t === T.Sand) {
+        zone = 'sand';
+      } else if (t === T.Grass) {
+        zone = 'grass';
+      } else if (t === T.Stone) {
+        zone = 'stone';
+      } else if (t === T.Path) {
+        zone = 'path';
+      }
+
+      if (!zone) continue;
+      if (t === T.Water) continue; // already drawn as base
+
+      const cfg = ZONE_TILES[zone];
+      const sel = cfg.selected;
+
+      if (sel.startsWith('#')) {
+        // Solid color
+        ctx.fillStyle = sel;
+        if (t === T.ShallowWater) {
+          ctx.globalAlpha = 0.7;
+          ctx.fillRect(x, y, tileW, tileH);
+          ctx.globalAlpha = 1;
+        } else {
+          ctx.fillRect(x, y, tileW, tileH);
+        }
+      } else {
+        // Texture - use tile scale blocks
+        const br = Math.floor(r / tileScale), bc = Math.floor(c / tileScale);
+        const bk = `${zone}_${br}_${bc}`;
+        if (!placed.has(bk)) {
+          placed.add(bk);
+          const img = texImgs[zone];
+          if (img) {
+            const bx = bc * blockW, by = br * blockH;
+            if (t === T.ShallowWater) {
+              ctx.globalAlpha = 0.75;
+              ctx.drawImage(img, bx, by, blockW, blockH);
+              ctx.globalAlpha = 1;
+            } else {
+              ctx.drawImage(img, bx, by, blockW, blockH);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Pass 3: Edge softening with radial gradients
+  if (softness > 0) {
+    const blendRadius = tileW * (0.4 + softness * 0.25);
+    const blendAlpha = 0.12 + softness * 0.06;
+
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const t = layout[r][c];
+        const cx = (c + 0.5) * tileW, cy = (r + 0.5) * tileH;
+
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = r + dr, nc = c + dc;
+            if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+            const nt = layout[nr][nc];
+
+            let blendColor = null;
+
+            // Water/Shallow next to land -> blend land color into water
+            if ((t === T.ShallowWater || t === T.Water) &&
+                (nt === T.Sand || nt === T.Grass || nt === T.Stone)) {
+              const zoneName = nt === T.Grass ? 'grass' : nt === T.Stone ? 'stone' : 'sand';
+              blendColor = getZoneColor(zoneName);
+            }
+            // Sand next to grass
+            if (t === T.Sand && nt === T.Grass) blendColor = getZoneColor('grass');
+            // Grass next to stone
+            if (t === T.Grass && (nt === T.Stone || nt === T.Path)) blendColor = getZoneColor('stone');
+
+            if (blendColor) {
+              const nx = (nc + 0.5) * tileW, ny = (nr + 0.5) * tileH;
+              const mx = (cx + nx) / 2, my = (cy + ny) / 2;
+              const grd = ctx.createRadialGradient(mx, my, 0, mx, my, blendRadius);
+              grd.addColorStop(0, blendColor);
+              grd.addColorStop(1, 'rgba(0,0,0,0)');
+              ctx.globalAlpha = blendAlpha;
+              ctx.fillStyle = grd;
+              ctx.beginPath();
+              ctx.arc(mx, my, blendRadius, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.globalAlpha = 1;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Pass 4: Prontera fountain marker
+  const fx = 25.5 * tileW, fy = 11.5 * tileH;
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 2 * scale;
+  ctx.beginPath();
+  ctx.ellipse(fx, fy, 35*scale, 16*scale, 0, 0, Math.PI*2);
+  ctx.stroke();
+}
+
+function getZoneColor(zoneName) {
+  const sel = ZONE_TILES[zoneName].selected;
+  if (sel.startsWith('#')) return sel;
+  // Approximate color for texture-based zones
+  const approx = { stone: '#b8a894', path: '#8a7a66', grass: '#5a8c4a', sand: '#d4b882',
+                    water: '#1a5c9e', shallow: '#2d8ab8' };
+  return approx[zoneName] || '#888';
+}
+
+async function renderMap() {
+  const scale = parseFloat(document.getElementById('previewScale').value);
+  document.getElementById('status').textContent = 'Rendering...';
+  await renderToCanvas(document.getElementById('mapCanvas'), scale);
+  document.getElementById('status').textContent = 'Ready';
+}
+
+async function saveMap() {
+  document.getElementById('status').textContent = 'Exporting full-size...';
+  const canvas = document.getElementById('exportCanvas');
+  await renderToCanvas(canvas, 1);
+  const dataUrl = canvas.toDataURL('image/png');
+
+  document.getElementById('status').textContent = 'Saving to project...';
+  const res = await fetch('/api/save', { method: 'POST', body: dataUrl });
+  const json = await res.json();
+  if (json.ok) {
+    document.getElementById('status').textContent = `Saved to ${json.path}`;
+  } else {
+    document.getElementById('status').textContent = 'Save failed!';
+  }
+}
+
+async function exportDownload() {
+  document.getElementById('status').textContent = 'Exporting...';
+  const canvas = document.getElementById('exportCanvas');
+  await renderToCanvas(canvas, 1);
+  const link = document.createElement('a');
+  link.download = 'map_bg.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  document.getElementById('status').textContent = 'Downloaded!';
+}
+
+document.getElementById('edgeSoftness').addEventListener('input', e => {
+  document.getElementById('softnessVal').textContent = e.target.value;
+});
+document.getElementById('previewScale').addEventListener('change', renderMap);
+document.getElementById('tileScale').addEventListener('change', renderMap);
+
+// Init
+buildSidebar();
+renderMap();
+</script>
+</body>
+</html>

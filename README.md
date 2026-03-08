@@ -49,6 +49,9 @@ ro_pvp_server/
 │       └── public/assets/   # Sprites, maps, tiles (~49MB)
 ├── packages/
 │   └── shared/          # Shared types, class definitions, skill data
+├── tools/
+│   ├── map-designer/    # Visual map designer (port 4000)
+│   └── sprite-editor/   # Sprite sheet editor
 ├── deploy/              # Production unified server for Railway
 └── docker-compose.yml   # PostgreSQL for local dev
 ```
